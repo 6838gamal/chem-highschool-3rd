@@ -206,28 +206,40 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
   void _handleCollisions() {
     bool anyReaction = false;
 
-    for (int i = 0; i < particles.length; i++) {
-      for (int j = i + 1; j < particles.length; j++) {
-        final a = particles[i];
-        final b = particles[j];
+    if (selectedMaterial == null) {
+      reactionStatus = "⚠ اختر مادة أولاً";
+      return;
+    }
 
-        if ((a.position - b.position).distanceSquared < 400) {
+    // Check if particles are in reaction zone (inside the container)
+    List<Particle> inZone = particles
+        .where((p) => p.position.dy > 150 && !p.reacted && !p.reacting)
+        .toList();
+
+    if (inZone.length < 2) {
+      return;
+    }
+
+    for (int i = 0; i < inZone.length; i++) {
+      for (int j = i + 1; j < inZone.length; j++) {
+        final a = inZone[i];
+        final b = inZone[j];
+
+        if ((a.position - b.position).distanceSquared < 600) {
           if (currentReaction != null &&
               _matches(a, b, currentReaction!)) {
             anyReaction = true;
             _executeReaction(a, b, currentReaction!);
-          } else {
-            reactionStatus = "❌ لا يوجد تفاعل بين هذه المواد";
+            reactionStatus =
+                "✔ تفاعل صحيح: ${currentReaction!.equation}";
+            return;
           }
         }
       }
     }
 
-    if (anyReaction && currentReaction != null) {
-      reactionStatus =
-          "✔ تفاعل صحيح: ${currentReaction!.equation}";
-    } else if (currentReaction == null) {
-      reactionStatus = "⚠ لا يوجد تفاعل معروف";
+    if (!anyReaction && inZone.length >= 2) {
+      reactionStatus = "❌ لا يوجد تفاعل بين هذه المواد";
     }
   }
 
@@ -307,45 +319,76 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
   /// ================= TOP PANEL =================
   Widget _topPanel() {
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       color: Colors.black26,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          Switch(
-            value: catalystOn,
-            onChanged: (v) =>
-                setState(() => catalystOn = v),
-          ),
-          DropdownButton(
-            hint: const Text("مادة"),
-            value: selectedMaterial,
-            onChanged: (v) =>
-                setState(() => selectedMaterial = v),
-            items: ParticleType.values
-                .map((e) => DropdownMenuItem(
-                      value: e,
-                      child: Text(_name(e)),
-                    ))
-                .toList(),
-          ),
-          DropdownButton(
-            hint: const Text("مسحوق"),
-            value: selectedPowder,
-            onChanged: (v) =>
-                setState(() => selectedPowder = v),
-            items: ParticleType.values
-                .map((e) => DropdownMenuItem(
-                      value: e,
-                      child: Text(_name(e)),
-                    ))
-                .toList(),
-          ),
-          ElevatedButton(
-            onPressed: _injectFromTube,
-            child: const Text("إدخال"),
-          ),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            Tooltip(
+              message: 'الحرارة',
+              child: Row(
+                children: [
+                  const Text('🔥', style: TextStyle(fontSize: 20)),
+                  Switch(
+                    value: burnerOn,
+                    onChanged: (v) =>
+                        setState(() => burnerOn = v),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Tooltip(
+              message: 'العامل المساعد',
+              child: Row(
+                children: [
+                  const Text('⚗️', style: TextStyle(fontSize: 20)),
+                  Switch(
+                    value: catalystOn,
+                    onChanged: (v) =>
+                        setState(() => catalystOn = v),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            DropdownButton<ParticleType>(
+              hint: const Text("مادة", style: TextStyle(color: Colors.white)),
+              dropdownColor: Colors.grey[800],
+              value: selectedMaterial,
+              onChanged: (v) =>
+                  setState(() => selectedMaterial = v),
+              items: ParticleType.values
+                  .map((e) => DropdownMenuItem(
+                        value: e,
+                        child: Text(_name(e), style: const TextStyle(color: Colors.white)),
+                      ))
+                  .toList(),
+            ),
+            const SizedBox(width: 8),
+            DropdownButton<ParticleType>(
+              hint: const Text("مسحوق", style: TextStyle(color: Colors.white)),
+              dropdownColor: Colors.grey[800],
+              value: selectedPowder,
+              onChanged: (v) =>
+                  setState(() => selectedPowder = v),
+              items: ParticleType.values
+                  .map((e) => DropdownMenuItem(
+                        value: e,
+                        child: Text(_name(e), style: const TextStyle(color: Colors.white)),
+                      ))
+                  .toList(),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              onPressed: _injectFromTube,
+              icon: const Icon(Icons.arrow_downward),
+              label: const Text("إدخال"),
+            ),
+          ],
+        ),
       ),
     );
   }
