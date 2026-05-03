@@ -46,7 +46,7 @@ class _BondingScreenState extends State<BondingScreen>
 
     controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 6),
+      duration: const Duration(seconds: 8),
     );
 
     reactions = [
@@ -197,28 +197,33 @@ class NuclearPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final start = Offset(size.width * 0.2, size.height / 2);
-    final end = Offset(size.width * 0.8, size.height / 2);
+    final start = Offset(size.width * 0.1, size.height / 2);
+    final end = Offset(size.width * 0.9, size.height / 2);
 
-    final pos = Offset.lerp(start, end, t)!;
+    // Smooth easing for more natural movement
+    double easeT = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    final pos = Offset.lerp(start, end, easeT)!;
 
-    double shake = (t > 0.3 && t < 0.6) ? sin(t * 40) * 5 : 0;
+    double shake = (t > 0.25 && t < 0.65) ? sin(t * 50) * 8 : 0;
     final c = pos + Offset(shake, 0);
 
     final current = _interpolateNucleus(before, after, t);
 
-    // Glow
-    double glow = (t > 0.3 && t < 0.6) ? (1 - (t - 0.3) * 3) : 0;
+    // Enhanced glow effect
+    double glowIntensity = 0.0;
+    if (t > 0.2 && t < 0.7) {
+      glowIntensity = sin((t - 0.2) * pi / 0.5) * 0.8;
+    }
     final glowPaint = Paint()
-      ..color = Colors.orange.withOpacity(glow)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 25);
+      ..color = Colors.orange.withOpacity(glowIntensity)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 35);
 
-    canvas.drawCircle(c, 60, glowPaint);
+    canvas.drawCircle(c, 65, glowPaint);
 
     _drawAtom(canvas, c, current);
     _drawParticles(canvas, c);
 
-    if (t > 0.7) {
+    if (t > 0.6) {
       _drawExplosion(canvas, c);
     }
   }
@@ -231,17 +236,36 @@ class NuclearPainter extends CustomPainter {
   }
 
   void _drawAtom(Canvas canvas, Offset center, Nucleus n) {
-    canvas.drawCircle(center, 30, Paint()..color = Colors.blueAccent);
+    // Draw nucleus core
+    canvas.drawCircle(center, 35, Paint()..color = Colors.blueAccent);
+    
+    // Draw nucleus border
+    canvas.drawCircle(center, 35, Paint()
+      ..color = Colors.cyan
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2);
 
+    // Draw protons (red) in outer ring
     for (int i = 0; i < n.protons; i++) {
       final angle = i * 2 * pi / max(1, n.protons);
-      final pos = center + Offset(cos(angle), sin(angle)) * 15;
-      canvas.drawCircle(pos, 4, Paint()..color = Colors.red);
+      final pos = center + Offset(cos(angle), sin(angle)) * 25;
+      canvas.drawCircle(pos, 5, Paint()..color = Colors.red);
+      // Add proton label
+      final textPainter = TextPainter(
+        text: const TextSpan(
+          text: '+',
+          style: TextStyle(color: Colors.red, fontSize: 8, fontWeight: FontWeight.bold),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, pos - Offset(textPainter.width / 2, textPainter.height / 2));
     }
 
+    // Draw neutrons (grey) in inner ring
     for (int i = 0; i < n.neutrons; i++) {
       final angle = i * 2 * pi / max(1, n.neutrons);
-      final pos = center + Offset(cos(angle), sin(angle)) * 10;
+      final pos = center + Offset(cos(angle), sin(angle)) * 16;
       canvas.drawCircle(pos, 4, Paint()..color = Colors.grey);
     }
   }
@@ -249,27 +273,35 @@ class NuclearPainter extends CustomPainter {
   void _drawParticles(Canvas canvas, Offset center) {
     void draw(Offset p, Color c, double r) {
       canvas.drawCircle(p, r, Paint()..color = c);
+      // Add glow to particles
+      canvas.drawCircle(p, r + 2, Paint()
+        ..color = c.withOpacity(0.3)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
     }
 
-    if (type == ReactionType.betaMinus) {
-      final p = Offset.lerp(center, center + const Offset(120, -60), t)!;
+    if (type == ReactionType.betaMinus && t > 0.25) {
+      double particleT = min(1.0, (t - 0.25) / 0.5);
+      final p = Offset.lerp(center, center + const Offset(150, -80), particleT)!;
       draw(p, Colors.yellow, 6);
     }
 
-    if (type == ReactionType.alpha) {
-      final p = Offset.lerp(center, center + const Offset(0, -140), t)!;
-      draw(p, Colors.orange, 10);
+    if (type == ReactionType.alpha && t > 0.25) {
+      double particleT = min(1.0, (t - 0.25) / 0.5);
+      final p = Offset.lerp(center, center + const Offset(0, -180), particleT)!;
+      draw(p, Colors.orange, 11);
     }
 
     if (type == ReactionType.fusion) {
-      final l = Offset.lerp(center + const Offset(-80, 0), center, t)!;
-      final r = Offset.lerp(center + const Offset(80, 0), center, t)!;
+      final l = Offset.lerp(center + const Offset(-100, 0), center, t)!;
+      final r = Offset.lerp(center + const Offset(100, 0), center, t)!;
 
-      draw(l, Colors.blue, 12);
-      draw(r, Colors.blue, 12);
+      if (t < 0.6) {
+        draw(l, Colors.blue, 13);
+        draw(r, Colors.blue, 13);
+      }
 
-      if (t > 0.7) {
-        draw(center, Colors.purple, 20);
+      if (t > 0.6) {
+        draw(center, Colors.purple, 22);
       }
     }
   }
