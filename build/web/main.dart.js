@@ -38757,42 +38757,40 @@ s=this.b
 return A.f0(r,r,r,new A.Lv(q,s.h(0,"before"),s.h(0,"after"),s.h(0,"type"),r),B.G)},
 $S:265}
 A.Lv.prototype={
-aA(a,b){var s,r,q,p,o,n,m,l,k,j,i,h,g=this,f=b.a,e=b.b/2,d=new A.e(f*0.05,e),c=new A.e(f*0.95,e)
-e=g.b
-f=A.hG(d,c,e)
-f.toString
-s=e>0.2
-r=f.O(0,new A.e(s&&e<0.8?Math.sin(e*60)*10:0,0))
-f=g.c
-q=g.d
-p=f.a
-o=B.c.ao(p+(q.a-p)*e)
-p=f.b
-n=B.c.ao(p+(q.b-p)*e)
-f=e<0.5?f.c:q.c
+aA(a,b){var s,r,q,p,o,n,m,l,k,j,i,h=this,g=b.a,f=b.b/2,e=new A.e(g*0.05,f),d=new A.e(g*0.95,f)
+f=h.b
+g=A.hG(e,d,f)
+g.toString
+s=h.c
+r=h.d
+q=s.a
+p=B.c.ao(q+(r.a-q)*f)
+q=s.b
+o=B.c.ao(q+(r.b-q)*f)
+s=f<0.5?s.c:r.c
 $.a1()
-m=A.al()
-m.r=A.N(51,B.bC.m()>>>16&255,B.bC.m()>>>8&255,B.bC.m()&255).gp()
-m.c=2
-q=a.a
-q.ir(d,c,m)
-l=e>0.15&&e<0.85?Math.sin((e-0.15)*3.141592653589793/0.7):0
-k=A.al()
-k.r=A.N(B.c.ao(255*l),B.a5.m()>>>16&255,B.a5.m()>>>8&255,B.a5.m()&255).gp()
-k.z=B.OF
-q.eO(r,80,k)
-j=s&&e<0.8?Math.sin((e-0.2)*3.141592653589793/0.6)*0.5:0
+n=A.al()
+n.r=A.N(51,B.bC.m()>>>16&255,B.bC.m()>>>8&255,B.bC.m()&255).gp()
+n.c=2
+r=a.a
+r.ir(e,d,n)
+m=f>0.15&&f<0.85?Math.sin((f-0.15)*3.141592653589793/0.7):0
+l=A.al()
+l.r=A.N(B.c.ao(255*m),B.a5.m()>>>16&255,B.a5.m()>>>8&255,B.a5.m()&255).gp()
+l.z=B.OF
+r.eO(g,80,l)
+k=f>0.2&&f<0.8?Math.sin((f-0.2)*3.141592653589793/0.6)*0.5:0
+j=A.al()
+j.r=A.N(B.c.ao(255*k),B.dS.m()>>>16&255,B.dS.m()>>>8&255,B.dS.m()&255).gp()
+j.z=B.OD
+r.eO(g,65,j)
+h.a4x(a,g,new A.ew(p,o,s))
+h.a4z(a,g)
+if(f>0.5)h.a4y(a,g)
 i=A.al()
-i.r=A.N(B.c.ao(255*j),B.dS.m()>>>16&255,B.dS.m()>>>8&255,B.dS.m()&255).gp()
-i.z=B.OD
-q.eO(r,65,i)
-g.a4x(a,r,new A.ew(o,n,f))
-g.a4z(a,r)
-if(e>0.5)g.a4y(a,r)
-h=A.al()
-h.r=A.N(B.c.ao(76.5),B.bC.m()>>>16&255,B.bC.m()>>>8&255,B.bC.m()&255).gp()
-h.c=3
-q.ir(d,r,h)},
+i.r=A.N(B.c.ao(76.5),B.bC.m()>>>16&255,B.bC.m()>>>8&255,B.bC.m()&255).gp()
+i.c=3
+r.ir(e,g,i)},
 a4x(a,b,c){var s,r,q,p,o,n,m,l,k,j,i,h=null
 $.a1()
 s=A.al()

@@ -200,11 +200,8 @@ class NuclearPainter extends CustomPainter {
     final start = Offset(size.width * 0.05, size.height / 2);
     final end = Offset(size.width * 0.95, size.height / 2);
 
-    // Linear movement for clear visibility
-    final pos = Offset.lerp(start, end, t)!;
-
-    double shake = (t > 0.2 && t < 0.8) ? sin(t * 60) * 10 : 0;
-    final c = pos + Offset(shake, 0);
+    // Linear smooth movement - no shake
+    final c = Offset.lerp(start, end, t)!;
 
     final current = _interpolateNucleus(before, after, t);
 
