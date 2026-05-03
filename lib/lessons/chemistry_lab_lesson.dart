@@ -85,30 +85,46 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
 
   /// ================= REACTIONS DATABASE =================
   final List<Reaction> reactions = [
+    // تفاعلات المواد السائلة والغازية
     Reaction(
       inputs: [ParticleType.h2, ParticleType.cl2],
       outputs: [ParticleType.hcl, ParticleType.hcl],
       needHeat: true,
-      equation: "H₂ + Cl₂ → 2HCl",
+      equation: "H₂ + Cl₂ → 2HCl (بالحرارة)",
     ),
     Reaction(
-      inputs: [ParticleType.h2, ParticleType.f2],
-      outputs: [ParticleType.h2o],
+      inputs: [ParticleType.h2, ParticleType.o2],
+      outputs: [ParticleType.h2o, ParticleType.h2o],
       needHeat: true,
-      equation: "H₂ + F₂ → H₂O",
+      equation: "2H₂ + O₂ → 2H₂O (احتراق)",
     ),
+    // تفاعلات المساحيق
     Reaction(
       inputs: [ParticleType.caco3],
       outputs: [ParticleType.co2],
       needHeat: true,
-      equation: "CaCO₃ → CO₂ + CaO",
+      equation: "CaCO₃ → CO₂ + CaO (بالحرارة)",
     ),
+    // تفاعلات التحلل بالعامل المساعد
     Reaction(
       inputs: [ParticleType.h2o2],
-      outputs: [ParticleType.h2o],
+      outputs: [ParticleType.h2o, ParticleType.o2],
       needCatalyst: true,
-      equation: "2H₂O₂ → 2H₂O + O₂",
+      equation: "2H₂O₂ → 2H₂O + O₂ (بالعامل المساعد)",
     ),
+  ];
+
+  // قائمة المواد السائلة والغازية
+  final List<ParticleType> materials = [
+    ParticleType.h2,
+    ParticleType.o2,
+    ParticleType.cl2,
+    ParticleType.h2o2,
+  ];
+
+  // قائمة المساحيق الصلبة
+  final List<ParticleType> powders = [
+    ParticleType.caco3,
   ];
 
   @override
@@ -181,19 +197,29 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
 
   /// ================= DETECT REACTION =================
   void _detectReaction() {
-    reactionStatus = "";
-
-    if (selectedMaterial == null) return;
+    if (selectedMaterial == null) {
+      currentReaction = null;
+      reactionStatus = "";
+      return;
+    }
 
     for (var r in reactions) {
-      bool matchMaterial = r.inputs.contains(selectedMaterial);
-      bool matchPowder = selectedPowder == null ||
-          r.inputs.contains(selectedPowder);
+      // تحقق من تطابق المادة
+      bool hasMaterial = r.inputs.contains(selectedMaterial);
+      
+      // تحقق من تطابق المسحوق (إن وجد)
+      bool hasPowder = true;
+      if (selectedPowder != null) {
+        hasPowder = r.inputs.contains(selectedPowder);
+      }
 
-      if (matchMaterial && matchPowder) {
-        if (r.needHeat && !burnerOn) continue;
-        if (r.needCatalyst && !catalystOn) continue;
+      // تحقق من احتياجات الحرارة والعامل المساعد
+      bool meetsConditions = true;
+      if (r.needHeat && !burnerOn) meetsConditions = false;
+      if (r.needCatalyst && !catalystOn) meetsConditions = false;
 
+      // إذا تطابقت جميع الشروط
+      if (hasMaterial && hasPowder && meetsConditions) {
         currentReaction = r;
         return;
       }
@@ -204,10 +230,7 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
 
   /// ================= COLLISIONS =================
   void _handleCollisions() {
-    bool anyReaction = false;
-
-    if (selectedMaterial == null) {
-      reactionStatus = "⚠ اختر مادة أولاً";
+    if (selectedMaterial == null || currentReaction == null) {
       return;
     }
 
@@ -216,55 +239,67 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
         .where((p) => p.position.dy > 150 && !p.reacted && !p.reacting)
         .toList();
 
-    if (inZone.length < 2) {
-      return;
+    // تفاعل بمادة واحدة فقط (مثل تحلل CaCO3 أو H2O2)
+    if (currentReaction!.inputs.length == 1) {
+      for (var p in inZone) {
+        if (currentReaction!.inputs.contains(p.type)) {
+          _executeReaction(p, null, currentReaction!);
+          reactionStatus = "✔ ${currentReaction!.equation}";
+          return;
+        }
+      }
     }
+    // تفاعل بمادتين (مثل H2 + Cl2)
+    else if (inZone.length >= 2) {
+      for (int i = 0; i < inZone.length; i++) {
+        for (int j = i + 1; j < inZone.length; j++) {
+          final a = inZone[i];
+          final b = inZone[j];
 
-    for (int i = 0; i < inZone.length; i++) {
-      for (int j = i + 1; j < inZone.length; j++) {
-        final a = inZone[i];
-        final b = inZone[j];
-
-        if ((a.position - b.position).distanceSquared < 600) {
-          if (currentReaction != null &&
-              _matches(a, b, currentReaction!)) {
-            anyReaction = true;
-            _executeReaction(a, b, currentReaction!);
-            reactionStatus =
-                "✔ تفاعل صحيح: ${currentReaction!.equation}";
-            return;
+          if ((a.position - b.position).distanceSquared < 600) {
+            if (_matches(a, b, currentReaction!)) {
+              _executeReaction(a, b, currentReaction!);
+              reactionStatus = "✔ ${currentReaction!.equation}";
+              return;
+            }
           }
         }
       }
     }
-
-    if (!anyReaction && inZone.length >= 2) {
-      reactionStatus = "❌ لا يوجد تفاعل بين هذه المواد";
-    }
   }
 
   bool _matches(Particle a, Particle b, Reaction r) {
-    return r.inputs.contains(a.type) &&
-        r.inputs.contains(b.type);
+    return (r.inputs.contains(a.type) &&
+            r.inputs.contains(b.type)) ||
+        (r.inputs.contains(b.type) &&
+            r.inputs.contains(a.type));
   }
 
   /// ================= EXECUTE REACTION =================
   void _executeReaction(
-      Particle a, Particle b, Reaction r) {
+      Particle a, Particle? b, Reaction r) {
     a.reacting = true;
-    b.reacting = true;
-
     a.reactionProgress = 0;
-    b.reactionProgress = 0;
-
     a.velocity = Offset.zero;
-    b.velocity = Offset.zero;
 
-    if (r.outputs.isNotEmpty) {
-      a.type = r.outputs.first;
-      b.type = r.outputs.length > 1
-          ? r.outputs[1]
-          : r.outputs.first;
+    if (b != null) {
+      b.reacting = true;
+      b.reactionProgress = 0;
+      b.velocity = Offset.zero;
+
+      if (r.outputs.isNotEmpty) {
+        a.type = r.outputs.first;
+        if (r.outputs.length > 1) {
+          b.type = r.outputs[1];
+        } else {
+          b.type = r.outputs.first;
+        }
+      }
+    } else {
+      // تفاعل بمادة واحدة فقط
+      if (r.outputs.isNotEmpty) {
+        a.type = r.outputs.first;
+      }
     }
   }
 
@@ -354,32 +389,60 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            DropdownButton<ParticleType>(
-              hint: const Text("مادة", style: TextStyle(color: Colors.white)),
-              dropdownColor: Colors.grey[800],
-              value: selectedMaterial,
-              onChanged: (v) =>
-                  setState(() => selectedMaterial = v),
-              items: ParticleType.values
-                  .map((e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(_name(e), style: const TextStyle(color: Colors.white)),
-                      ))
-                  .toList(),
+            // قائمة المواد
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text("مادة", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                DropdownButton<ParticleType>(
+                  hint: const Text("اختر مادة", style: TextStyle(color: Colors.white)),
+                  dropdownColor: Colors.grey[800],
+                  value: selectedMaterial,
+                  onChanged: (v) {
+                    setState(() {
+                      selectedMaterial = v;
+                      _detectReaction();
+                    });
+                  },
+                  items: materials
+                      .map((e) => DropdownMenuItem(
+                            value: e,
+                            child: Text(_name(e), style: const TextStyle(color: Colors.white)),
+                          ))
+                      .toList(),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            DropdownButton<ParticleType>(
-              hint: const Text("مسحوق", style: TextStyle(color: Colors.white)),
-              dropdownColor: Colors.grey[800],
-              value: selectedPowder,
-              onChanged: (v) =>
-                  setState(() => selectedPowder = v),
-              items: ParticleType.values
-                  .map((e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(_name(e), style: const TextStyle(color: Colors.white)),
-                      ))
-                  .toList(),
+            const SizedBox(width: 16),
+            // قائمة المساحيق
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text("مسحوق", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                DropdownButton<ParticleType?>(
+                  hint: const Text("اختر (اختياري)", style: TextStyle(color: Colors.white)),
+                  dropdownColor: Colors.grey[800],
+                  value: selectedPowder,
+                  onChanged: (v) {
+                    setState(() {
+                      selectedPowder = v;
+                      _detectReaction();
+                    });
+                  },
+                  items: [
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Text("بدون مسحوق", style: TextStyle(color: Colors.white)),
+                    ),
+                    ...powders
+                        .map((e) => DropdownMenuItem(
+                              value: e,
+                              child: Text(_name(e), style: const TextStyle(color: Colors.white)),
+                            ))
+                        .toList(),
+                  ],
+                ),
+              ],
             ),
             const SizedBox(width: 8),
             ElevatedButton.icon(
