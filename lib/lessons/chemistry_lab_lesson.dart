@@ -169,13 +169,24 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
 
   /// ================= MOVEMENT =================
   void _move() {
+    // حساب حدود الوعاء (مركز الشاشة)
+    double containerCenterX = worldW / 2;
+    double containerCenterY = worldH / 2;
+    double containerWidth = 220;
+    double containerHeight = 320;
+    double containerLeft = containerCenterX - containerWidth / 2;
+    double containerRight = containerCenterX + containerWidth / 2;
+    double containerTop = containerCenterY - containerHeight / 2;
+    double containerBottom = containerCenterY + containerHeight / 2;
+
     for (var p in particles) {
       if (p.reacting) {
         p.reactionProgress += 0.05;
 
+        // اهتزاز عشوائي أثناء التفاعل
         p.position += Offset(
-          random.nextDouble() * 2 - 1,
-          random.nextDouble() * 2 - 1,
+          (random.nextDouble() - 0.5) * 4,
+          (random.nextDouble() - 0.5) * 4,
         );
 
         if (p.reactionProgress >= 1) {
@@ -186,12 +197,31 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
         continue;
       }
 
-      /// نزول داخل الأنبوب
+      /// نزول داخل الأنبوب (قبل دخول الوعاء)
       if (p.position.dy < 150) {
         p.velocity = const Offset(0, 3);
+      } else {
+        /// داخل الوعاء - حركة بطيئة مع الجاذبية
+        p.velocity = Offset(p.velocity.dx * 0.98, p.velocity.dy + 0.1);
       }
 
       p.position += p.velocity;
+
+      /// حدود الوعاء - الجزيئات تبقى داخله
+      if (p.position.dy > containerBottom - 15) {
+        p.position = Offset(p.position.dx, containerBottom - 15);
+        p.velocity = Offset(p.velocity.dx * 0.9, 0);
+      }
+
+      if (p.position.dx < containerLeft + 10) {
+        p.position = Offset(containerLeft + 10, p.position.dy);
+        p.velocity = Offset(-p.velocity.dx * 0.9, p.velocity.dy);
+      }
+
+      if (p.position.dx > containerRight - 10) {
+        p.position = Offset(containerRight - 10, p.position.dy);
+        p.velocity = Offset(-p.velocity.dx * 0.9, p.velocity.dy);
+      }
     }
   }
 
@@ -230,36 +260,48 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
 
   /// ================= COLLISIONS =================
   void _handleCollisions() {
-    if (selectedMaterial == null || currentReaction == null) {
+    if (selectedMaterial == null) {
+      reactionStatus = "اختر مادة";
       return;
     }
 
-    // Check if particles are in reaction zone (inside the container)
-    List<Particle> inZone = particles
+    // تصفية الجزيئات غير المتفاعلة والموجودة في الوعاء
+    List<Particle> available = particles
         .where((p) => p.position.dy > 150 && !p.reacted && !p.reacting)
         .toList();
 
+    if (available.isEmpty) {
+      return;
+    }
+
+    if (currentReaction == null) {
+      reactionStatus = "لا يوجد تفاعل متاح";
+      return;
+    }
+
     // تفاعل بمادة واحدة فقط (مثل تحلل CaCO3 أو H2O2)
     if (currentReaction!.inputs.length == 1) {
-      for (var p in inZone) {
+      for (var p in available) {
         if (currentReaction!.inputs.contains(p.type)) {
           _executeReaction(p, null, currentReaction!);
-          reactionStatus = "✔ ${currentReaction!.equation}";
+          reactionStatus = "✔ تفاعل: ${currentReaction!.equation}";
           return;
         }
       }
     }
     // تفاعل بمادتين (مثل H2 + Cl2)
-    else if (inZone.length >= 2) {
-      for (int i = 0; i < inZone.length; i++) {
-        for (int j = i + 1; j < inZone.length; j++) {
-          final a = inZone[i];
-          final b = inZone[j];
+    else if (available.length >= 2) {
+      for (int i = 0; i < available.length; i++) {
+        for (int j = i + 1; j < available.length; j++) {
+          final a = available[i];
+          final b = available[j];
 
-          if ((a.position - b.position).distanceSquared < 600) {
+          // تحقق من القرب بين الجزيئات
+          double distance = (a.position - b.position).distance;
+          if (distance < 30) {
             if (_matches(a, b, currentReaction!)) {
               _executeReaction(a, b, currentReaction!);
-              reactionStatus = "✔ ${currentReaction!.equation}";
+              reactionStatus = "✔ تفاعل: ${currentReaction!.equation}";
               return;
             }
           }
