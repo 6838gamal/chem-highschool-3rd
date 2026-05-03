@@ -290,29 +290,74 @@ class NuclearPainter extends CustomPainter {
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
     }
 
-    if (type == ReactionType.betaMinus && t > 0.25) {
-      double particleT = min(1.0, (t - 0.25) / 0.5);
-      final p = Offset.lerp(center, center + const Offset(150, -80), particleT)!;
-      draw(p, Colors.yellow, 6);
+    // Beta minus emission - electron/antineutrino
+    if (type == ReactionType.betaMinus) {
+      double particleT = min(1.0, (t - 0.1) / 0.8);
+      if (particleT > 0) {
+        final p = Offset.lerp(center, center + const Offset(150, -80), particleT)!;
+        draw(p, Colors.yellow, 7);
+      }
     }
 
-    if (type == ReactionType.alpha && t > 0.25) {
-      double particleT = min(1.0, (t - 0.25) / 0.5);
-      final p = Offset.lerp(center, center + const Offset(0, -180), particleT)!;
-      draw(p, Colors.orange, 11);
+    // Beta plus emission - positron
+    if (type == ReactionType.betaPlus) {
+      double particleT = min(1.0, (t - 0.1) / 0.8);
+      if (particleT > 0) {
+        final p = Offset.lerp(center, center + const Offset(-150, 80), particleT)!;
+        draw(p, Colors.pink, 7);
+      }
     }
 
+    // Alpha particle emission
+    if (type == ReactionType.alpha) {
+      double particleT = min(1.0, (t - 0.1) / 0.8);
+      if (particleT > 0) {
+        final p = Offset.lerp(center, center + const Offset(0, -180), particleT)!;
+        draw(p, Colors.deepOrange, 12);
+      }
+    }
+
+    // Electron capture
+    if (type == ReactionType.electronCapture) {
+      double particleT = min(1.0, (t - 0.1) / 0.8);
+      if (particleT > 0) {
+        final p = Offset.lerp(center + const Offset(-100, -100), center, particleT)!;
+        draw(p, Colors.lightBlue, 6);
+      }
+    }
+
+    // Neutron capture
+    if (type == ReactionType.neutronCapture) {
+      double particleT = min(1.0, (t - 0.1) / 0.8);
+      if (particleT > 0) {
+        final p = Offset.lerp(center + const Offset(100, 0), center, particleT)!;
+        draw(p, Colors.grey, 8);
+      }
+    }
+
+    // Fission - two products
+    if (type == ReactionType.fission) {
+      double particleT = min(1.0, (t - 0.1) / 0.8);
+      if (particleT > 0) {
+        final p1 = Offset.lerp(center, center + const Offset(-200, -100), particleT)!;
+        final p2 = Offset.lerp(center, center + const Offset(200, 100), particleT)!;
+        draw(p1, Colors.amber, 10);
+        draw(p2, Colors.amber, 10);
+      }
+    }
+
+    // Fusion - combining nuclei
     if (type == ReactionType.fusion) {
       final l = Offset.lerp(center + const Offset(-100, 0), center, t)!;
       final r = Offset.lerp(center + const Offset(100, 0), center, t)!;
 
       if (t < 0.6) {
-        draw(l, Colors.blue, 13);
-        draw(r, Colors.blue, 13);
+        draw(l, Colors.lightBlue, 14);
+        draw(r, Colors.lightBlue, 14);
       }
 
       if (t > 0.6) {
-        draw(center, Colors.purple, 22);
+        draw(center, Colors.purple, 20);
       }
     }
   }
