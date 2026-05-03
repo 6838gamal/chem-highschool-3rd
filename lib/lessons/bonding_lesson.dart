@@ -158,6 +158,7 @@ class _BondingScreenState extends State<BondingScreen>
             child: AnimatedBuilder(
               animation: controller,
               builder: (_, __) => CustomPaint(
+                size: Size.infinite,
                 painter: NuclearPainter(
                   controller.value,
                   r["before"],
