@@ -6,17 +6,35 @@ import '../constants.dart';
 class Atom {
   Offset position;
   Offset velocity;
+  Offset force = Offset.zero;
   String type;
   int bonds = 0;
 
   Atom(this.position, this.velocity, this.type);
 
+  double get mass {
+    switch (type) {
+      case "H":
+        return 1;
+      case "O":
+        return 16;
+      case "C":
+        return 12;
+      default:
+        return 1;
+    }
+  }
+
   int get maxBonds {
     switch (type) {
-      case "H": return 1;
-      case "O": return 2;
-      case "C": return 4;
-      default: return 0;
+      case "H":
+        return 1;
+      case "O":
+        return 2;
+      case "C":
+        return 4;
+      default:
+        return 0;
     }
   }
 
@@ -24,7 +42,8 @@ class Atom {
 }
 
 class Bond {
-  Atom a; Atom b;
+  Atom a;
+  Atom b;
   Bond(this.a, this.b);
 }
 
@@ -32,7 +51,7 @@ class AlcoholScreen extends StatefulWidget {
   const AlcoholScreen({super.key});
 
   @override
-  _AlcoholScreenState createState() => _AlcoholScreenState();
+  State<AlcoholScreen> createState() => _AlcoholScreenState();
 }
 
 class _AlcoholScreenState extends State<AlcoholScreen> {
@@ -50,14 +69,22 @@ class _AlcoholScreenState extends State<AlcoholScreen> {
   }
 
   void initAtoms() {
-    atoms = List.generate(9, (i) {
-      String type = (i < 2) ? "C" : (i < 8) ? "H" : "O";
-      return Atom(
-        Offset(random.nextDouble() * 300 + 50, random.nextDouble() * 400 + 50),
-        Offset(random.nextDouble() * 3 - 1.5, random.nextDouble() * 3 - 1.5),
-        type,
-      );
-    });
+    atoms = [
+      Atom(Offset(120, 200), randomVel(), "C"),
+      Atom(Offset(220, 200), randomVel(), "C"),
+      Atom(Offset(170, 120), randomVel(), "O"),
+
+      Atom(Offset(80, 300), randomVel(), "H"),
+      Atom(Offset(130, 320), randomVel(), "H"),
+      Atom(Offset(180, 330), randomVel(), "H"),
+      Atom(Offset(230, 320), randomVel(), "H"),
+      Atom(Offset(280, 300), randomVel(), "H"),
+      Atom(Offset(320, 260), randomVel(), "H"),
+    ];
+  }
+
+  Offset randomVel() {
+    return Offset(random.nextDouble() * 2 - 1, random.nextDouble() * 2 - 1);
   }
 
   void startSimulation() {
@@ -69,31 +96,93 @@ class _AlcoholScreenState extends State<AlcoholScreen> {
 
   void updatePhysics() {
     setState(() {
+      applyForces();
+      applyBondForces();
       moveAtoms();
       createBonds();
       validateMolecule();
     });
   }
 
-  void moveAtoms() {
-    double width = MediaQuery.of(context).size.width;
-    double height = MediaQuery.of(context).size.height * 0.6;
+  // 🔥 القوى بين الذرات (تنافر + جذب)
+  void applyForces() {
+    const double repulsion = 6000;
+    const double attraction = 0.015;
 
     for (var a in atoms) {
-      a.position += a.velocity;
-      if (a.position.dx < 20 || a.position.dx > width - 20) a.velocity = Offset(-a.velocity.dx, a.velocity.dy);
-      if (a.position.dy < 20 || a.position.dy > height - 20) a.velocity = Offset(a.velocity.dx, -a.velocity.dy);
+      a.force = Offset.zero;
+
+      for (var b in atoms) {
+        if (a == b) continue;
+
+        Offset dir = a.position - b.position;
+        double dist = dir.distance + 0.1;
+        Offset norm = dir / dist;
+
+        // تنافر قوي عند القرب
+        a.force += norm * (repulsion / (dist * dist));
+
+        // جذب خفيف عند المسافات المتوسطة
+        if (dist < 140) {
+          a.force -= norm * attraction * dist;
+        }
+      }
     }
   }
 
+  // 🧲 الروابط كنابض (Spring physics)
+  void applyBondForces() {
+    const double bondStrength = 0.03;
+    const double idealLength = 40;
+
+    for (var bond in bonds) {
+      Offset dir = bond.b.position - bond.a.position;
+      double dist = dir.distance + 0.1;
+      Offset norm = dir / dist;
+
+      double forceMag = bondStrength * (dist - idealLength);
+
+      bond.a.force += norm * forceMag;
+      bond.b.force -= norm * forceMag;
+    }
+  }
+
+  // 🚀 حركة فيزيائية حقيقية
+  void moveAtoms() {
+    final size = MediaQuery.of(context).size;
+    double width = size.width;
+    double height = size.height * 0.6;
+
+    for (var a in atoms) {
+      Offset acceleration = a.force / a.mass;
+
+      a.velocity = (a.velocity + acceleration) * 0.97;
+      a.position += a.velocity;
+
+      // حدود الشاشة
+      if (a.position.dx < 20 || a.position.dx > width - 20) {
+        a.velocity = Offset(-a.velocity.dx * 0.6, a.velocity.dy);
+      }
+
+      if (a.position.dy < 20 || a.position.dy > height - 20) {
+        a.velocity = Offset(a.velocity.dx, -a.velocity.dy * 0.6);
+      }
+    }
+  }
+
+  // 🔗 تكوين الروابط
   void createBonds() {
     for (int i = 0; i < atoms.length; i++) {
       for (int j = i + 1; j < atoms.length; j++) {
-        Atom a = atoms[i];
-        Atom b = atoms[j];
+        final a = atoms[i];
+        final b = atoms[j];
+
         double dist = (a.position - b.position).distance;
 
-        if (dist < 50 && a.canBond() && b.canBond() && !alreadyBonded(a, b)) {
+        if (dist < 50 &&
+            a.canBond() &&
+            b.canBond() &&
+            !alreadyBonded(a, b)) {
           bonds.add(Bond(a, b));
           a.bonds++;
           b.bonds++;
@@ -102,20 +191,34 @@ class _AlcoholScreenState extends State<AlcoholScreen> {
     }
   }
 
-  bool alreadyBonded(Atom a, Atom b) => bonds.any((bond) => (bond.a == a && bond.b == b) || (bond.a == b && bond.b == a));
+  bool alreadyBonded(Atom a, Atom b) {
+    return bonds.any((bond) =>
+        (bond.a == a && bond.b == b) || (bond.a == b && bond.b == a));
+  }
 
+  // 🧪 تحقق من الإيثانول
   void validateMolecule() {
-    if (!ethanolFormed && bonds.length >= 8) {
-      ethanolFormed = true;
+    if (!ethanolFormed) {
+      int c = atoms.where((e) => e.type == "C").length;
+      int h = atoms.where((e) => e.type == "H").length;
+      int o = atoms.where((e) => e.type == "O").length;
+
+      if (c == 2 && h >= 6 && o == 1 && bonds.length >= 7) {
+        ethanolFormed = true;
+      }
     }
   }
 
   Color atomColor(String type) {
     switch (type) {
-      case "C": return Colors.grey.shade900;
-      case "O": return Colors.redAccent;
-      case "H": return Colors.lightBlueAccent;
-      default: return Colors.white;
+      case "C":
+        return Colors.grey.shade900;
+      case "O":
+        return Colors.redAccent;
+      case "H":
+        return Colors.lightBlueAccent;
+      default:
+        return Colors.white;
     }
   }
 
@@ -123,17 +226,19 @@ class _AlcoholScreenState extends State<AlcoholScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text("الكيمياء العضوية: الأغوال"), backgroundColor: Colors.transparent),
+      appBar: AppBar(
+        title: const Text("محاكاة الإيثانول - فيزياء جزيئية"),
+        backgroundColor: Colors.transparent,
+      ),
       body: Column(
         children: [
-          _buildStatusHeader(),
+          _header(),
           Expanded(
             child: Container(
               margin: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.black26,
                 borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: AppColors.neonBlue.withOpacity(0.2)),
               ),
               child: CustomPaint(
                 painter: MoleculePainter(atoms, bonds, atomColor),
@@ -141,57 +246,72 @@ class _AlcoholScreenState extends State<AlcoholScreen> {
               ),
             ),
           ),
-          _buildInfoPanel(),
+          _info(),
         ],
       ),
     );
   }
 
-  Widget _buildStatusHeader() {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 500),
-      margin: const EdgeInsets.all(15),
-      padding: const EdgeInsets.all(15),
+  Widget _header() {
+    return Container(
+      margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: ethanolFormed ? Colors.green.withOpacity(0.2) : AppColors.glassWhite,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: ethanolFormed ? Colors.green : Colors.white10),
+        color: ethanolFormed
+            ? Colors.green.withOpacity(0.2)
+            : Colors.white10,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        ethanolFormed ? "✅ تم تكوين جزيء الإيثانول بنجاح!" : "🧪 جارِ محاكاة التصادمات لتكوين C₂H₅OH",
-        style: TextStyle(color: ethanolFormed ? Colors.greenAccent : Colors.white, fontWeight: FontWeight.bold),
+        ethanolFormed
+            ? "✅ جزيء الإيثانول مستقر"
+            : "🧪 المحاكاة الفيزيائية تعمل...",
+        style: TextStyle(
+          color: ethanolFormed ? Colors.greenAccent : Colors.white,
+        ),
       ),
     );
   }
 
-  Widget _buildInfoPanel() {
+  Widget _info() {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(color: AppColors.glassWhite, borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
+      decoration: const BoxDecoration(
+        color: Colors.white10,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _stat("C", "2", Colors.black),
-          _stat("H", "6", Colors.lightBlueAccent),
-          _stat("O", "1", Colors.redAccent),
-          _stat("Bonds", "${bonds.length}/8", AppColors.neonBlue),
+          _stat("C", "2"),
+          _stat("H", "6"),
+          _stat("O", "1"),
+          _stat("Bonds", "${bonds.length}"),
         ],
       ),
     );
   }
 
-  Widget _stat(String label, String val, Color color) {
-    return Column(children: [Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 18)), Text(val, style: const TextStyle(color: Colors.white70))]);
+  Widget _stat(String a, String b) {
+    return Column(
+      children: [
+        Text(a, style: const TextStyle(color: Colors.white)),
+        Text(b, style: const TextStyle(color: Colors.white70)),
+      ],
+    );
   }
 
   @override
-  void dispose() { timer?.cancel(); super.dispose(); }
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
 }
 
 class MoleculePainter extends CustomPainter {
-  List<Atom> atoms;
-  List<Bond> bonds;
-  Function colorFn;
+  final List<Atom> atoms;
+  final List<Bond> bonds;
+  final Function colorFn;
 
   MoleculePainter(this.atoms, this.bonds, this.colorFn);
 
@@ -199,24 +319,39 @@ class MoleculePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..strokeCap = StrokeCap.round;
 
-    for (var bond in bonds) {
-      paint.color = Colors.white24;
-      paint.strokeWidth = 4;
-      canvas.drawLine(bond.a.position, bond.b.position, paint);
+    // الروابط
+    for (var b in bonds) {
+      paint
+        ..color = Colors.white24
+        ..strokeWidth = 2.5;
+      canvas.drawLine(b.a.position, b.b.position, paint);
     }
 
-    for (var atom in atoms) {
-      paint.color = colorFn(atom.type);
-      canvas.drawCircle(atom.position, 16, paint);
-      // إضافة تأثير توهج (Glow)
-      paint.color = colorFn(atom.type).withOpacity(0.3);
-      canvas.drawCircle(atom.position, 22, paint);
+    // الذرات
+    for (var a in atoms) {
+      final c = colorFn(a.type);
 
-      final textPainter = TextPainter(
-        text: TextSpan(text: atom.type, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+      paint
+        ..color = c
+        ..style = PaintingStyle.fill;
+
+      canvas.drawCircle(a.position, 13, paint);
+
+      paint.color = c.withOpacity(0.25);
+      canvas.drawCircle(a.position, 20, paint);
+
+      final tp = TextPainter(
+        text: TextSpan(
+          text: a.type,
+          style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold),
+        ),
         textDirection: TextDirection.ltr,
       )..layout();
-      textPainter.paint(canvas, atom.position + const Offset(-6, -10));
+
+      tp.paint(canvas, a.position + const Offset(-5, -8));
     }
   }
 

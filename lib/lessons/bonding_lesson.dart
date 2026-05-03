@@ -26,7 +26,6 @@ enum ReactionType {
   betaPlus,
   electronCapture,
   neutronCapture,
-  transmutation,
   fission,
   fusion,
 }
@@ -50,15 +49,12 @@ class _BondingScreenState extends State<BondingScreen>
       duration: const Duration(seconds: 6),
     );
 
-    // 🔥 كل التفاعلات الثمانية
     reactions = [
       {"name": "β⁻ C → N", "type": ReactionType.betaMinus, "before": Nucleus(6, 8, "C"), "after": Nucleus(7, 7, "N")},
       {"name": "β⁺ C → B", "type": ReactionType.betaPlus, "before": Nucleus(6, 5, "C"), "after": Nucleus(5, 6, "B")},
       {"name": "Electron Capture Rb → Kr", "type": ReactionType.electronCapture, "before": Nucleus(37, 44, "Rb"), "after": Nucleus(36, 45, "Kr")},
       {"name": "Alpha Ra → Rn", "type": ReactionType.alpha, "before": Nucleus(88, 138, "Ra"), "after": Nucleus(86, 136, "Rn")},
-      {"name": "Alpha Po → Pb", "type": ReactionType.alpha, "before": Nucleus(84, 126, "Po"), "after": Nucleus(82, 124, "Pb")},
       {"name": "Neutron Capture Au", "type": ReactionType.neutronCapture, "before": Nucleus(79, 118, "Au"), "after": Nucleus(79, 119, "Au")},
-      {"name": "Transmutation N → O", "type": ReactionType.transmutation, "before": Nucleus(7, 7, "N"), "after": Nucleus(8, 9, "O")},
       {"name": "Fission U → Ba + Kr", "type": ReactionType.fission, "before": Nucleus(92, 143, "U"), "after": Nucleus(56, 85, "Ba")},
       {"name": "Fusion H + H → He", "type": ReactionType.fusion, "before": Nucleus(1, 1, "H"), "after": Nucleus(2, 2, "He")},
     ];
@@ -95,9 +91,6 @@ class _BondingScreenState extends State<BondingScreen>
         break;
       case ReactionType.neutronCapture:
         particle = " + n";
-        break;
-      case ReactionType.transmutation:
-        particle = " + H";
         break;
       case ReactionType.fission:
         particle = " + Ba + Kr + 3n";
@@ -152,8 +145,10 @@ class _BondingScreenState extends State<BondingScreen>
               reactions.length,
               (i) => DropdownMenuItem(
                 value: i,
-                child: Text(r["name"],
-                    style: const TextStyle(color: Colors.white)),
+                child: Text(
+                  reactions[i]["name"],
+                  style: const TextStyle(color: Colors.white),
+                ),
               ),
             ),
             onChanged: (v) => setState(() => selected = v!),
@@ -202,17 +197,38 @@ class NuclearPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
+    final start = Offset(size.width * 0.2, size.height / 2);
+    final end = Offset(size.width * 0.8, size.height / 2);
 
-    double shake = (t > 0.3 && t < 0.5) ? sin(t * 40) * 5 : 0;
-    final c = center + Offset(shake, 0);
+    final pos = Offset.lerp(start, end, t)!;
 
-    _drawAtom(canvas, c, t < 0.5 ? before : after);
+    double shake = (t > 0.3 && t < 0.6) ? sin(t * 40) * 5 : 0;
+    final c = pos + Offset(shake, 0);
+
+    final current = _interpolateNucleus(before, after, t);
+
+    // Glow
+    double glow = (t > 0.3 && t < 0.6) ? (1 - (t - 0.3) * 3) : 0;
+    final glowPaint = Paint()
+      ..color = Colors.orange.withOpacity(glow)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 25);
+
+    canvas.drawCircle(c, 60, glowPaint);
+
+    _drawAtom(canvas, c, current);
     _drawParticles(canvas, c);
-    _drawExplosion(canvas, c);
+
+    if (t > 0.7) {
+      _drawExplosion(canvas, c);
+    }
   }
 
-  // ================= ATOM =================
+  Nucleus _interpolateNucleus(Nucleus a, Nucleus b, double t) {
+    int p = (a.protons + (b.protons - a.protons) * t).round();
+    int n = (a.neutrons + (b.neutrons - a.neutrons) * t).round();
+
+    return Nucleus(p, n, t < 0.5 ? a.symbol : b.symbol);
+  }
 
   void _drawAtom(Canvas canvas, Offset center, Nucleus n) {
     canvas.drawCircle(center, 30, Paint()..color = Colors.blueAccent);
@@ -220,115 +236,54 @@ class NuclearPainter extends CustomPainter {
     for (int i = 0; i < n.protons; i++) {
       final angle = i * 2 * pi / max(1, n.protons);
       final pos = center + Offset(cos(angle), sin(angle)) * 15;
-      canvas.drawCircle(pos, 4, Paint()..color = Colors.red); // +
+      canvas.drawCircle(pos, 4, Paint()..color = Colors.red);
     }
 
     for (int i = 0; i < n.neutrons; i++) {
       final angle = i * 2 * pi / max(1, n.neutrons);
       final pos = center + Offset(cos(angle), sin(angle)) * 10;
-      canvas.drawCircle(pos, 4, Paint()..color = Colors.grey); // 0
-    }
-
-    for (int i = 1; i <= 3; i++) {
-      canvas.drawCircle(
-        center,
-        i * 50,
-        Paint()
-          ..color = Colors.white24
-          ..style = PaintingStyle.stroke,
-      );
-    }
-
-    for (int i = 0; i < n.protons; i++) {
-      double angle = (i / max(1, n.protons)) * 2 * pi + t * 2;
-      final pos = center + Offset(cos(angle), sin(angle)) * 70;
-      canvas.drawCircle(pos, 3, Paint()..color = Colors.purpleAccent); // -
+      canvas.drawCircle(pos, 4, Paint()..color = Colors.grey);
     }
   }
 
-  // ================= PARTICLES (8 REACTIONS) =================
-
   void _drawParticles(Canvas canvas, Offset center) {
-    void drawLabel(Offset p, String text, Color c, double r) {
+    void draw(Offset p, Color c, double r) {
       canvas.drawCircle(p, r, Paint()..color = c);
     }
 
     if (type == ReactionType.betaMinus) {
-      final p = Offset.lerp(center, center + const Offset(150, 0), t)!;
-      drawLabel(p, "β⁻", Colors.yellow, 6);
-    }
-
-    if (type == ReactionType.betaPlus) {
-      final p = Offset.lerp(center, center + const Offset(-150, 0), t)!;
-      drawLabel(p, "β⁺", Colors.green, 6);
+      final p = Offset.lerp(center, center + const Offset(120, -60), t)!;
+      draw(p, Colors.yellow, 6);
     }
 
     if (type == ReactionType.alpha) {
-      final p = Offset.lerp(center, center + const Offset(0, -150), t)!;
-      drawLabel(p, "α", Colors.orange, 10);
-    }
-
-    if (type == ReactionType.electronCapture) {
-      final p = Offset.lerp(center + const Offset(150, 0), center, t)!;
-      drawLabel(p, "e⁻", Colors.cyan, 6);
-    }
-
-    if (type == ReactionType.neutronCapture) {
-      final p = Offset.lerp(center + const Offset(-150, 0), center, t)!;
-      drawLabel(p, "n", Colors.white, 6);
-    }
-
-    if (type == ReactionType.transmutation) {
-      final a = Offset.lerp(center + const Offset(-150, 0), center, t)!;
-      drawLabel(a, "α", Colors.orange, 10);
-
-      if (t > 0.6) {
-        final p = Offset.lerp(center, center + const Offset(150, 0), t)!;
-        drawLabel(p, "p⁺", Colors.red, 6);
-      }
-    }
-
-    if (type == ReactionType.fission) {
-      if (t > 0.5) {
-        final l = Offset.lerp(center, center + const Offset(-120, 0), t)!;
-        final r = Offset.lerp(center, center + const Offset(120, 0), t)!;
-
-        drawLabel(l, "Ba", Colors.green, 20);
-        drawLabel(r, "Kr", Colors.red, 20);
-
-        for (int i = 0; i < 3; i++) {
-          final ang = i * 2 * pi / 3;
-          final p = center + Offset(cos(ang), sin(ang)) * (t * 150);
-          drawLabel(p, "n", Colors.white, 5);
-        }
-      }
+      final p = Offset.lerp(center, center + const Offset(0, -140), t)!;
+      draw(p, Colors.orange, 10);
     }
 
     if (type == ReactionType.fusion) {
-      final l = Offset.lerp(center + const Offset(-100, 0), center, t)!;
-      final r = Offset.lerp(center + const Offset(100, 0), center, t)!;
+      final l = Offset.lerp(center + const Offset(-80, 0), center, t)!;
+      final r = Offset.lerp(center + const Offset(80, 0), center, t)!;
 
-      drawLabel(l, "H", Colors.blue, 20);
-      drawLabel(r, "H", Colors.blue, 20);
+      draw(l, Colors.blue, 12);
+      draw(r, Colors.blue, 12);
 
       if (t > 0.7) {
-        drawLabel(center, "He", Colors.purple, 30);
+        draw(center, Colors.purple, 20);
       }
     }
   }
 
-  // ================= EXPLOSION =================
-
   void _drawExplosion(Canvas canvas, Offset center) {
-    double p = (t - 0.4) / 0.2;
+    double p = (t - 0.7) / 0.3;
     if (p < 0 || p > 1) return;
 
-    final radius = p * 120;
+    final radius = p * 150;
 
     final paint = Paint()
       ..color = Colors.orange.withOpacity(1 - p)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 4;
+      ..strokeWidth = 5;
 
     canvas.drawCircle(center, radius, paint);
   }

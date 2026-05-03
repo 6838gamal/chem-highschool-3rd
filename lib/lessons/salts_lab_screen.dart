@@ -2,18 +2,27 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../constants.dart';
 
-// ================= Electron Model =================
-class Electron {
+// ================= PARTICLE =================
+class Particle {
   Offset pos;
-  Offset target;
+  Offset vel;
+  double charge;
+  Color color;
+  bool fixed;
 
-  Electron(this.pos, this.target);
+  Particle({
+    required this.pos,
+    required this.vel,
+    required this.charge,
+    required this.color,
+    this.fixed = false,
+  });
 }
 
-// ================= Bond Type =================
+// ================= TYPES =================
 enum BondType { ionic, covalent }
 
-// ================= MAIN CLASS (مهم جدًا: لم يتم تغييره) =================
+// ================= MAIN CLASS =================
 class SaltLabAllInOne extends StatefulWidget {
   const SaltLabAllInOne({super.key});
 
@@ -25,103 +34,151 @@ class _SaltLabAllInOneState extends State<SaltLabAllInOne>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  final math.Random r = math.Random();
+  // ================= PHYSICS ENGINE =================
+  List<Particle> particles = [];
 
-  // ================= Reaction =================
+  final double k = 0.8;
+  final double damping = 0.97;
+  final Offset gravity = Offset(0, 0.03);
+
+  // ================= REACTION =================
   BondType bondType = BondType.ionic;
-
+  String equation = "";
   bool running = false;
-  bool finished = false;
-
-  Offset leftAtom = const Offset(80, 200);
-  Offset rightAtom = const Offset(260, 200);
-
-  late Electron electron;
-
-  double angle = 0;
 
   // ================= pH =================
-  int hCount = 10;
-  int ohCount = 10;
+  int h = 10;
+  int oh = 10;
 
-  // ================= Salts =================
-  final salts = {
-    "NaCl": ["Na⁺", "Cl⁻"],
-    "CaCl₂": ["Ca²⁺", "2Cl⁻"],
-    "NH₄Cl": ["NH₄⁺", "Cl⁻"],
-    "NaCN": ["Na⁺", "CN⁻"],
-  };
-
-  String selectedSalt = "NaCl";
+  // ================= SALTS =================
+  final List<Map<String, dynamic>> saltsInfo = [
+    {
+      "name": "NH₄Cl",
+      "medium": "حمضي",
+      "acid": "HCl (قوي)",
+      "base": "NH₃ (ضعيف)",
+      "effect": "يزيد H⁺ → يقل pH"
+    },
+    {
+      "name": "CH₃COONa",
+      "medium": "قاعدي",
+      "acid": "CH₃COOH (ضعيف)",
+      "base": "NaOH (قوي)",
+      "effect": "يزيد OH⁻ → يرتفع pH"
+    },
+    {
+      "name": "NaCl",
+      "medium": "متعادل",
+      "acid": "HCl (قوي)",
+      "base": "NaOH (قوي)",
+      "effect": "لا تغيير في pH"
+    },
+    {
+      "name": "NaCN",
+      "medium": "قاعدي",
+      "acid": "HCN (ضعيف)",
+      "base": "NaOH (قوي)",
+      "effect": "قاعدي بسبب CN⁻"
+    },
+  ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
-    electron = Electron(leftAtom, rightAtom);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
-  // ================= Electron Transfer =================
-  void _updateReaction() {
-    if (!running) return;
+  // ================= PH =================
+  double _ph() {
+    double hv = (h + 1) / 50;
+    double ov = (oh + 1) / 50;
 
-    setState(() {
-      if (bondType == BondType.ionic) {
-        Offset dir = electron.target - electron.pos;
+    if (h > oh) {
+      return -math.log(hv) / math.ln10;
+    } else {
+      double poh = -math.log(ov) / math.ln10;
+      return 14 - poh;
+    }
+  }
 
-        if (dir.distance < 2) {
-          finished = true;
-        } else {
-          electron.pos += dir * 0.05;
-        }
-      } else {
-        angle += 0.05;
+  Color _phColor(double pH) {
+    if (pH < 7) return Colors.red;
+    if (pH > 7) return Colors.blue;
+    return Colors.green;
+  }
+
+  // ================= INIT PHYSICS =================
+  void initPhysics() {
+    particles = [
+      Particle(
+        pos: const Offset(100, 200),
+        vel: Offset.zero,
+        charge: 1,
+        color: Colors.blue,
+      ),
+      Particle(
+        pos: const Offset(260, 200),
+        vel: Offset.zero,
+        charge: -1,
+        color: Colors.red,
+      ),
+      Particle(
+        pos: const Offset(180, 240),
+        vel: Offset.zero,
+        charge: -0.5,
+        color: Colors.cyan,
+      ),
+    ];
+  }
+
+  // ================= PHYSICS ENGINE =================
+  void updatePhysics() {
+    for (int i = 0; i < particles.length; i++) {
+      for (int j = i + 1; j < particles.length; j++) {
+        final a = particles[i];
+        final b = particles[j];
+
+        final dir = b.pos - a.pos;
+        final dist = dir.distance + 0.1;
+
+        final force = (k * a.charge * b.charge) / (dist * dist);
+        final norm = Offset(dir.dx / dist, dir.dy / dist);
+
+        if (!a.fixed) a.vel += norm * (-force);
+        if (!b.fixed) b.vel += norm * (force);
       }
-    });
+    }
+
+    for (var p in particles) {
+      if (!p.fixed) {
+        p.vel += gravity;
+        p.vel *= damping;
+        p.pos += p.vel;
+      }
+    }
   }
 
-  void _startReaction() {
+  // ================= START =================
+  void startSimulation() {
     setState(() {
       running = true;
-      finished = false;
-      electron.pos = leftAtom;
+      equation = bondType == BondType.ionic
+          ? "Na + Cl → Na⁺ + Cl⁻"
+          : "H + H → H₂";
+
+      initPhysics();
     });
 
     Future.doWhile(() async {
       await Future.delayed(const Duration(milliseconds: 16));
-      _updateReaction();
-      return running;
+      if (!running) return false;
+
+      setState(() {
+        updatePhysics();
+      });
+
+      return true;
     });
-  }
-
-  // ================= pH Calculation (حقيقي لوغاريتمي) =================
-  double _calculatePH() {
-    double h = (hCount + 1) / 50;
-    double oh = (ohCount + 1) / 50;
-
-    if (hCount > ohCount) {
-      return -math.log(h) / math.ln10;
-    } else {
-      double pOH = -math.log(oh) / math.ln10;
-      return 14 - pOH;
-    }
-  }
-
-  void _neutralize() {
-    int reaction = math.min(hCount, ohCount);
-
-    setState(() {
-      hCount -= reaction;
-      ohCount -= reaction;
-    });
-  }
-
-  Color _getPHColor(double pH) {
-    if (pH < 7) {
-      return Color.lerp(Colors.red, Colors.green, pH / 7)!;
-    } else {
-      return Color.lerp(Colors.green, Colors.blue, (pH - 7) / 7)!;
-    }
   }
 
   // ================= UI =================
@@ -130,39 +187,37 @@ class _SaltLabAllInOneState extends State<SaltLabAllInOne>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text("مختبر الأملاح والتفاعلات"),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        title: const Text("مختبر الكيمياء التفاعلي"),
         bottom: TabBar(
           controller: _tabController,
-          isScrollable: true,
           tabs: const [
             Tab(text: "التفاعل"),
-            Tab(text: "pH"),
             Tab(text: "الأملاح"),
-            Tab(text: "التوصيل"),
-            Tab(text: "أخرى"),
+            Tab(text: "المختبر"),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          _tabReaction(),
-          _tabPH(),
-          _tabSalts(),
-          _simpleTab("التوصيل"),
-          _simpleTab("قريباً"),
+          _reactionTab(),
+          _saltTab(),
+          _labTab(),
         ],
       ),
     );
   }
 
-  // ================= Reaction Tab =================
-  Widget _tabReaction() {
+  // ================= TAB 1 =================
+  Widget _reactionTab() {
     return Column(
       children: [
         const SizedBox(height: 10),
+
+        Text(
+          equation,
+          style: const TextStyle(color: Colors.white),
+        ),
 
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -184,159 +239,133 @@ class _SaltLabAllInOneState extends State<SaltLabAllInOne>
         ),
 
         ElevatedButton(
-          onPressed: _startReaction,
-          child: const Text("بدء التفاعل"),
+          onPressed: startSimulation,
+          child: const Text("تشغيل التفاعل"),
         ),
 
         Expanded(
           child: Stack(
-            children: [
-              // ===== Left Atom =====
-              Positioned(
-                left: leftAtom.dx,
-                top: leftAtom.dy,
-                child: _atom(
-                    bondType == BondType.ionic
-                        ? (finished ? "Na⁺" : "Na")
-                        : "H",
-                    Colors.grey),
-              ),
-
-              // ===== Right Atom =====
-              Positioned(
-                left: rightAtom.dx,
-                top: rightAtom.dy,
-                child: _atom(
-                    bondType == BondType.ionic
-                        ? (finished ? "Cl⁻" : "Cl")
-                        : "H",
-                    Colors.grey),
-              ),
-
-              // ===== Ionic Electron =====
-              if (bondType == BondType.ionic &&
-                  running &&
-                  !finished)
-                Positioned(
-                  left: electron.pos.dx,
-                  top: electron.pos.dy,
-                  child: const Icon(Icons.circle,
-                      size: 10, color: Colors.cyan),
+            children: particles.map((p) {
+              return Positioned(
+                left: p.pos.dx,
+                top: p.pos.dy,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: p.color,
+                  ),
                 ),
-
-              // ===== Covalent electrons =====
-              if (bondType == BondType.covalent)
-                ...List.generate(2, (i) {
-                  double x =
-                      170 + 30 * math.cos(angle + i * math.pi);
-                  double y =
-                      220 + 30 * math.sin(angle + i * math.pi);
-
-                  return Positioned(
-                    left: x,
-                    top: y,
-                    child: const Icon(Icons.circle,
-                        size: 10, color: Colors.green),
-                  );
-                }),
-            ],
+              );
+            }).toList(),
           ),
         ),
       ],
     );
   }
 
-  Widget _atom(String label, Color color) {
-    return Column(
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration:
-              BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        Text(label,
-            style: const TextStyle(color: Colors.white))
-      ],
+  // ================= TAB 2: SALTS =================
+  Widget _saltTab() {
+    return ListView.builder(
+      itemCount: saltsInfo.length,
+      itemBuilder: (context, i) {
+        final s = saltsInfo[i];
+
+        Color c;
+        if (s["medium"] == "حمضي") {
+          c = Colors.red;
+        } else if (s["medium"] == "قاعدي") {
+          c = Colors.blue;
+        } else {
+          c = Colors.green;
+        }
+
+        return Card(
+          color: Colors.white10,
+          child: ListTile(
+            title: Text(
+              s["name"],
+              style: const TextStyle(color: Colors.white),
+            ),
+            subtitle: Text(
+              "الوسط: ${s["medium"]}",
+              style: TextStyle(color: c),
+            ),
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: Text(s["name"]),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text("الوسط: ${s["medium"]}"),
+                      Text("الحمض: ${s["acid"]}"),
+                      Text("القاعدة: ${s["base"]}"),
+                      Text("التأثير: ${s["effect"]}"),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
-  // ================= pH Tab =================
-  Widget _tabPH() {
-    double pH = _calculatePH().clamp(0, 14);
-    Color color = _getPHColor(pH);
+  // ================= TAB 3 =================
+  Widget _labTab() {
+    double pH = _ph();
 
     return Column(
       children: [
         const SizedBox(height: 10),
 
-        Slider(
-          value: hCount.toDouble(),
-          min: 0,
-          max: 50,
-          onChanged: (v) => setState(() => hCount = v.toInt()),
-        ),
-
-        Slider(
-          value: ohCount.toDouble(),
-          min: 0,
-          max: 50,
-          onChanged: (v) => setState(() => ohCount = v.toInt()),
-        ),
-
         Text(
           "pH = ${pH.toStringAsFixed(2)}",
-          style: TextStyle(
-              color: color,
-              fontSize: 24,
-              fontWeight: FontWeight.bold),
+          style: TextStyle(color: _phColor(pH), fontSize: 22),
         ),
 
-        ElevatedButton(
-          onPressed: _neutralize,
-          child: const Text("تعادل"),
+        Slider(
+          value: h.toDouble(),
+          min: 0,
+          max: 50,
+          onChanged: (v) => setState(() => h = v.toInt()),
+        ),
+
+        Slider(
+          value: oh.toDouble(),
+          min: 0,
+          max: 50,
+          onChanged: (v) => setState(() => oh = v.toInt()),
         ),
 
         Expanded(
           child: Container(
-            margin: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(20),
+            margin: const EdgeInsets.all(10),
+            width: double.infinity,
+            color: _phColor(pH).withOpacity(0.2),
+            child: Stack(
+              children: particles.map((p) {
+                return Positioned(
+                  left: p.pos.dx,
+                  top: p.pos.dy,
+                  child: Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: p.color,
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
           ),
-        )
+        ),
       ],
-    );
-  }
-
-  // ================= Salts Tab =================
-  Widget _tabSalts() {
-    return ListView(
-      children: salts.entries.map((e) {
-        return ListTile(
-          title: Text(e.key,
-              style: const TextStyle(color: Colors.white)),
-          subtitle: Wrap(
-            children: e.value
-                .map((i) => Chip(
-                      label: Text(i),
-                      backgroundColor:
-                          i.contains("⁺")
-                              ? Colors.blue
-                              : Colors.red,
-                    ))
-                .toList(),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _simpleTab(String title) {
-    return Center(
-      child: Text(title,
-          style: const TextStyle(color: Colors.white)),
     );
   }
 
