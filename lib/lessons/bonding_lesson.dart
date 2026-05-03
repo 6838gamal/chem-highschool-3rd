@@ -197,35 +197,60 @@ class NuclearPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final start = Offset(size.width * 0.1, size.height / 2);
-    final end = Offset(size.width * 0.9, size.height / 2);
+    final start = Offset(size.width * 0.05, size.height / 2);
+    final end = Offset(size.width * 0.95, size.height / 2);
 
-    // Smooth easing for more natural movement
-    double easeT = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-    final pos = Offset.lerp(start, end, easeT)!;
+    // Linear movement for clear visibility
+    final pos = Offset.lerp(start, end, t)!;
 
-    double shake = (t > 0.25 && t < 0.65) ? sin(t * 50) * 8 : 0;
+    double shake = (t > 0.2 && t < 0.8) ? sin(t * 60) * 10 : 0;
     final c = pos + Offset(shake, 0);
 
     final current = _interpolateNucleus(before, after, t);
 
-    // Enhanced glow effect
+    // Draw path/trajectory line
+    final pathPaint = Paint()
+      ..color = Colors.cyan.withOpacity(0.2)
+      ..strokeWidth = 2;
+    canvas.drawLine(start, end, pathPaint);
+
+    // Enhanced glow effect - larger and more visible
     double glowIntensity = 0.0;
-    if (t > 0.2 && t < 0.7) {
-      glowIntensity = sin((t - 0.2) * pi / 0.5) * 0.8;
+    if (t > 0.15 && t < 0.85) {
+      glowIntensity = sin((t - 0.15) * pi / 0.7) * 1.0;
     }
     final glowPaint = Paint()
       ..color = Colors.orange.withOpacity(glowIntensity)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 35);
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 50);
 
-    canvas.drawCircle(c, 65, glowPaint);
+    canvas.drawCircle(c, 80, glowPaint);
+
+    // Draw transition glow
+    double transitionGlow = 0.0;
+    if (t > 0.2 && t < 0.8) {
+      transitionGlow = sin((t - 0.2) * pi / 0.6) * 0.5;
+    }
+    final transitionPaint = Paint()
+      ..color = Colors.yellow.withOpacity(transitionGlow)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 30);
+    canvas.drawCircle(c, 65, transitionPaint);
 
     _drawAtom(canvas, c, current);
     _drawParticles(canvas, c);
 
-    if (t > 0.6) {
+    if (t > 0.5) {
       _drawExplosion(canvas, c);
     }
+
+    // Draw progress indicator
+    _drawProgressTrail(canvas, start, c);
+  }
+
+  void _drawProgressTrail(Canvas canvas, Offset start, Offset current) {
+    final trailPaint = Paint()
+      ..color = Colors.cyan.withOpacity(0.3)
+      ..strokeWidth = 3;
+    canvas.drawLine(start, current, trailPaint);
   }
 
   Nucleus _interpolateNucleus(Nucleus a, Nucleus b, double t) {
