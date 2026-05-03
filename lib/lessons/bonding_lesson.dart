@@ -197,50 +197,35 @@ class NuclearPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final start = Offset(size.width * 0.05, size.height / 2);
-    final end = Offset(size.width * 0.95, size.height / 2);
+    final start = Offset(size.width * 0.1, size.height / 2);
+    final end = Offset(size.width * 0.9, size.height / 2);
 
-    // Linear smooth movement - no shake
+    // Linear smooth movement - no vibration
     final c = Offset.lerp(start, end, t)!;
 
     final current = _interpolateNucleus(before, after, t);
 
-    // Draw path/trajectory line
+    // Draw path/trajectory line - thin and subtle
     final pathPaint = Paint()
-      ..color = Colors.cyan.withOpacity(0.2)
-      ..strokeWidth = 2;
+      ..color = Colors.cyan.withOpacity(0.15)
+      ..strokeWidth = 1;
     canvas.drawLine(start, end, pathPaint);
 
-    // Enhanced glow effect - larger and more visible
-    double glowIntensity = 0.0;
-    if (t > 0.15 && t < 0.85) {
-      glowIntensity = sin((t - 0.15) * pi / 0.7) * 1.0;
+    // Subtle glow only during reaction
+    if (t > 0.3 && t < 0.7) {
+      double glowIntensity = sin((t - 0.3) * pi / 0.4) * 0.4;
+      final glowPaint = Paint()
+        ..color = Colors.orange.withOpacity(glowIntensity)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 40);
+      canvas.drawCircle(c, 75, glowPaint);
     }
-    final glowPaint = Paint()
-      ..color = Colors.orange.withOpacity(glowIntensity)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 50);
-
-    canvas.drawCircle(c, 80, glowPaint);
-
-    // Draw transition glow
-    double transitionGlow = 0.0;
-    if (t > 0.2 && t < 0.8) {
-      transitionGlow = sin((t - 0.2) * pi / 0.6) * 0.5;
-    }
-    final transitionPaint = Paint()
-      ..color = Colors.yellow.withOpacity(transitionGlow)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 30);
-    canvas.drawCircle(c, 65, transitionPaint);
 
     _drawAtom(canvas, c, current);
     _drawParticles(canvas, c);
 
-    if (t > 0.5) {
+    if (t > 0.6) {
       _drawExplosion(canvas, c);
     }
-
-    // Draw progress indicator
-    _drawProgressTrail(canvas, start, c);
   }
 
   void _drawProgressTrail(Canvas canvas, Offset start, Offset current) {
@@ -258,38 +243,42 @@ class NuclearPainter extends CustomPainter {
   }
 
   void _drawAtom(Canvas canvas, Offset center, Nucleus n) {
-    // Draw nucleus core
-    canvas.drawCircle(center, 35, Paint()..color = Colors.blueAccent);
+    // Draw nucleus core with size proportional to mass
+    double coreRadius = 25 + (n.mass / 50) * 15;
+    canvas.drawCircle(center, coreRadius, Paint()..color = Colors.blueAccent);
     
     // Draw nucleus border
-    canvas.drawCircle(center, 35, Paint()
+    canvas.drawCircle(center, coreRadius, Paint()
       ..color = Colors.cyan
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2);
 
-    // Draw protons (red) in outer ring
+    // Draw protons (red) - show count clearly
     for (int i = 0; i < n.protons; i++) {
       final angle = i * 2 * pi / max(1, n.protons);
-      final pos = center + Offset(cos(angle), sin(angle)) * 25;
-      canvas.drawCircle(pos, 5, Paint()..color = Colors.red);
-      // Add proton label
-      final textPainter = TextPainter(
-        text: const TextSpan(
-          text: '+',
-          style: TextStyle(color: Colors.red, fontSize: 8, fontWeight: FontWeight.bold),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-      textPainter.layout();
-      textPainter.paint(canvas, pos - Offset(textPainter.width / 2, textPainter.height / 2));
+      final radius = coreRadius + 20;
+      final pos = center + Offset(cos(angle), sin(angle)) * radius;
+      canvas.drawCircle(pos, 6, Paint()..color = Colors.red);
     }
 
-    // Draw neutrons (grey) in inner ring
+    // Draw neutrons (grey) - show count clearly
     for (int i = 0; i < n.neutrons; i++) {
       final angle = i * 2 * pi / max(1, n.neutrons);
-      final pos = center + Offset(cos(angle), sin(angle)) * 16;
-      canvas.drawCircle(pos, 4, Paint()..color = Colors.grey);
+      final radius = coreRadius + 10;
+      final pos = center + Offset(cos(angle), sin(angle)) * radius;
+      canvas.drawCircle(pos, 5, Paint()..color = Colors.grey);
     }
+    
+    // Draw text with proton and neutron count
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: 'P:${n.protons} N:${n.neutrons}',
+        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout();
+    textPainter.paint(canvas, center - Offset(textPainter.width / 2, -coreRadius - 30));
   }
 
   void _drawParticles(Canvas canvas, Offset center) {
