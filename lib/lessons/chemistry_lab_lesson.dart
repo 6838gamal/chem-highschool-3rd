@@ -390,59 +390,75 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
             ),
             const SizedBox(width: 8),
             // قائمة المواد
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text("مادة", style: TextStyle(color: Colors.white70, fontSize: 12)),
-                DropdownButton<ParticleType>(
-                  hint: const Text("اختر مادة", style: TextStyle(color: Colors.white)),
-                  dropdownColor: Colors.grey[800],
-                  value: selectedMaterial,
-                  onChanged: (v) {
-                    setState(() {
-                      selectedMaterial = v;
-                      _detectReaction();
-                    });
-                  },
-                  items: materials
-                      .map((e) => DropdownMenuItem(
-                            value: e,
-                            child: Text(_name(e), style: const TextStyle(color: Colors.white)),
-                          ))
-                      .toList(),
-                ),
-              ],
-            ),
-            const SizedBox(width: 16),
-            // قائمة المساحيق
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text("مسحوق", style: TextStyle(color: Colors.white70, fontSize: 12)),
-                DropdownButton<ParticleType?>(
-                  hint: const Text("اختر (اختياري)", style: TextStyle(color: Colors.white)),
-                  dropdownColor: Colors.grey[800],
-                  value: selectedPowder,
-                  onChanged: (v) {
-                    setState(() {
-                      selectedPowder = v;
-                      _detectReaction();
-                    });
-                  },
-                  items: [
-                    const DropdownMenuItem(
-                      value: null,
-                      child: Text("بدون مسحوق", style: TextStyle(color: Colors.white)),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("🧪 مادة", style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+                    DropdownButton<ParticleType>(
+                      isExpanded: true,
+                      hint: const Text("اختر مادة", style: TextStyle(color: Colors.white60, fontSize: 13)),
+                      dropdownColor: Colors.grey[850],
+                      value: selectedMaterial,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      onChanged: (v) {
+                        setState(() {
+                          selectedMaterial = v;
+                          _detectReaction();
+                        });
+                      },
+                      items: materials
+                          .map((e) => DropdownMenuItem(
+                                value: e,
+                                child: Text(_name(e)),
+                              ))
+                          .toList(),
                     ),
-                    ...powders
-                        .map((e) => DropdownMenuItem(
-                              value: e,
-                              child: Text(_name(e), style: const TextStyle(color: Colors.white)),
-                            ))
-                        .toList(),
                   ],
                 ),
-              ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // قائمة المساحيق
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("💊 مسحوق", style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+                    DropdownButton<ParticleType?>(
+                      isExpanded: true,
+                      hint: const Text("اختياري", style: TextStyle(color: Colors.white60, fontSize: 13)),
+                      dropdownColor: Colors.grey[850],
+                      value: selectedPowder,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      onChanged: (v) {
+                        setState(() {
+                          selectedPowder = v;
+                          _detectReaction();
+                        });
+                      },
+                      items: [
+                        const DropdownMenuItem(
+                          value: null,
+                          child: Text("بدون"),
+                        ),
+                        ...powders
+                            .map((e) => DropdownMenuItem(
+                                  value: e,
+                                  child: Text(_name(e)),
+                                ))
+                            .toList(),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(width: 8),
             ElevatedButton.icon(
