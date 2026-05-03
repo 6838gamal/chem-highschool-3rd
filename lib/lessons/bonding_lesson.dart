@@ -286,78 +286,80 @@ class NuclearPainter extends CustomPainter {
       canvas.drawCircle(p, r, Paint()..color = c);
       // Add glow to particles
       canvas.drawCircle(p, r + 2, Paint()
-        ..color = c.withOpacity(0.3)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
+        ..color = c.withOpacity(0.4)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
     }
 
     // Beta minus emission - electron/antineutrino
     if (type == ReactionType.betaMinus) {
-      double particleT = min(1.0, (t - 0.1) / 0.8);
-      if (particleT > 0) {
-        final p = Offset.lerp(center, center + const Offset(150, -80), particleT)!;
-        draw(p, Colors.yellow, 7);
+      if (t > 0.25 && t < 1.0) {
+        double particleT = min(1.0, (t - 0.25) / 0.75);
+        final p = Offset.lerp(center, center + const Offset(200, -100), particleT)!;
+        draw(p, Colors.yellow, 8);
       }
     }
 
     // Beta plus emission - positron
     if (type == ReactionType.betaPlus) {
-      double particleT = min(1.0, (t - 0.1) / 0.8);
-      if (particleT > 0) {
-        final p = Offset.lerp(center, center + const Offset(-150, 80), particleT)!;
-        draw(p, Colors.pink, 7);
+      if (t > 0.25 && t < 1.0) {
+        double particleT = min(1.0, (t - 0.25) / 0.75);
+        final p = Offset.lerp(center, center + const Offset(-200, 100), particleT)!;
+        draw(p, Colors.pink, 8);
       }
     }
 
     // Alpha particle emission
     if (type == ReactionType.alpha) {
-      double particleT = min(1.0, (t - 0.1) / 0.8);
-      if (particleT > 0) {
-        final p = Offset.lerp(center, center + const Offset(0, -180), particleT)!;
-        draw(p, Colors.deepOrange, 12);
+      if (t > 0.25 && t < 1.0) {
+        double particleT = min(1.0, (t - 0.25) / 0.75);
+        final p = Offset.lerp(center, center + const Offset(0, -220), particleT)!;
+        draw(p, Colors.deepOrange, 14);
       }
     }
 
     // Electron capture
     if (type == ReactionType.electronCapture) {
-      double particleT = min(1.0, (t - 0.1) / 0.8);
-      if (particleT > 0) {
-        final p = Offset.lerp(center + const Offset(-100, -100), center, particleT)!;
-        draw(p, Colors.lightBlue, 6);
+      if (t > 0.2 && t < 1.0) {
+        double particleT = min(1.0, (t - 0.2) / 0.8);
+        final p = Offset.lerp(center + const Offset(-150, -150), center, particleT)!;
+        draw(p, Colors.lightBlue, 7);
       }
     }
 
     // Neutron capture
     if (type == ReactionType.neutronCapture) {
-      double particleT = min(1.0, (t - 0.1) / 0.8);
-      if (particleT > 0) {
-        final p = Offset.lerp(center + const Offset(100, 0), center, particleT)!;
-        draw(p, Colors.grey, 8);
+      if (t > 0.2 && t < 1.0) {
+        double particleT = min(1.0, (t - 0.2) / 0.8);
+        final p = Offset.lerp(center + const Offset(150, 0), center, particleT)!;
+        draw(p, Colors.grey, 10);
       }
     }
 
-    // Fission - two products
+    // Fission - two products moving outward
     if (type == ReactionType.fission) {
-      double particleT = min(1.0, (t - 0.1) / 0.8);
-      if (particleT > 0) {
-        final p1 = Offset.lerp(center, center + const Offset(-200, -100), particleT)!;
-        final p2 = Offset.lerp(center, center + const Offset(200, 100), particleT)!;
-        draw(p1, Colors.amber, 10);
-        draw(p2, Colors.amber, 10);
+      if (t > 0.25 && t < 1.0) {
+        double particleT = min(1.0, (t - 0.25) / 0.75);
+        final p1 = Offset.lerp(center, center + const Offset(-250, -120), particleT)!;
+        final p2 = Offset.lerp(center, center + const Offset(250, 120), particleT)!;
+        draw(p1, Colors.amber, 12);
+        draw(p2, Colors.amber, 12);
       }
     }
 
     // Fusion - combining nuclei
     if (type == ReactionType.fusion) {
-      final l = Offset.lerp(center + const Offset(-100, 0), center, t)!;
-      final r = Offset.lerp(center + const Offset(100, 0), center, t)!;
+      final l = Offset.lerp(center + const Offset(-120, 0), center, t)!;
+      final r = Offset.lerp(center + const Offset(120, 0), center, t)!;
 
-      if (t < 0.6) {
-        draw(l, Colors.lightBlue, 14);
-        draw(r, Colors.lightBlue, 14);
+      if (t < 0.7) {
+        draw(l, Colors.lightBlue, 15);
+        draw(r, Colors.lightBlue, 15);
       }
 
-      if (t > 0.6) {
-        draw(center, Colors.purple, 20);
+      if (t > 0.7) {
+        double mergeT = min(1.0, (t - 0.7) / 0.3);
+        double size = 20 + mergeT * 10;
+        draw(center, Color.lerp(Colors.purple, Colors.yellow, mergeT)!, size);
       }
     }
   }
