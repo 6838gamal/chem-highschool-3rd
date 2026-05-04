@@ -14,6 +14,7 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
   late AnimationController controller;
 
   bool heatOn = false;
+  double pressure = 1.0;
 
   final List<Molecule> molecules = [];
 
@@ -42,19 +43,18 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
     _calculateDirection();
 
     for (var m in molecules) {
-      m.update(heatOn, molecules, boxSize);
+      m.update(heatOn, pressure, boxSize);
     }
 
     setState(() {});
   }
 
   void _calculateDirection() {
-    int reactants = molecules
-        .where((m) => m.type == MoleculeType.N2 || m.type == MoleculeType.H2)
-        .length;
+    int reactants = molecules.where((m) =>
+        m.type == MoleculeType.N2 || m.type == MoleculeType.H2).length;
 
-    int products =
-        molecules.where((m) => m.type == MoleculeType.NH3).length;
+    int products = molecules.where((m) =>
+        m.type == MoleculeType.NH3).length;
 
     if (reactants > products + 2) {
       direction = ReactionDirection.forward;
@@ -65,20 +65,30 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
     }
   }
 
-  void toggleHeat() {
-    setState(() => heatOn = !heatOn);
-  }
+  void toggleHeat() => setState(() => heatOn = !heatOn);
+
+  void addN2() => setState(() => molecules.add(Molecule(type: MoleculeType.N2)));
+  void addH2() => setState(() => molecules.add(Molecule(type: MoleculeType.H2)));
+
+  void increaseP() => setState(() => pressure = (pressure + 0.2).clamp(0.5, 3));
+  void decreaseP() => setState(() => pressure = (pressure - 0.2).clamp(0.5, 3));
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
+
       body: LayoutBuilder(
         builder: (context, constraints) {
-          boxSize = Size(constraints.maxWidth, constraints.maxHeight * 0.55);
+
+          boxSize = Size(
+            constraints.maxWidth,
+            constraints.maxHeight * 0.45,
+          );
 
           return Column(
             children: [
+
               const SizedBox(height: 45),
 
               const Text(
@@ -88,6 +98,9 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
 
               const SizedBox(height: 10),
 
+              // =========================
+              // 🧪 المفاعل
+              // =========================
               Expanded(
                 flex: 4,
                 child: Container(
@@ -101,18 +114,17 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
                       return Positioned(
                         left: m.x,
                         top: m.y,
-                        child: Row(
-                          children: m.atoms
-                              .map((a) => Container(
-                                    margin: const EdgeInsets.all(2),
-                                    width: 12,
-                                    height: 12,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: a.color,
-                                    ),
-                                  ))
-                              .toList(),
+                        child: Column(
+                          children: [
+                            Row(children: m.buildAtoms()),
+                            Text(
+                              m.label(),
+                              style: const TextStyle(
+                                color: Colors.white38,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
                         ),
                       );
                     }).toList(),
@@ -127,9 +139,13 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
 
               const SizedBox(height: 10),
 
+              // =========================
+              // 🎛️ التحكم
+              // =========================
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+
                   IconButton(
                     icon: Icon(
                       Icons.local_fire_department,
@@ -137,16 +153,46 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
                     ),
                     onPressed: toggleHeat,
                   ),
+
+                  IconButton(
+                    icon: const Icon(Icons.remove, color: Colors.white),
+                    onPressed: decreaseP,
+                  ),
+
                   Text(
-                    heatOn ? "Heat ON" : "Heat OFF",
+                    "P:${pressure.toStringAsFixed(1)}",
                     style: const TextStyle(color: Colors.white),
                   ),
+
+                  IconButton(
+                    icon: const Icon(Icons.add, color: Colors.white),
+                    onPressed: increaseP,
+                  ),
+                ],
+              ),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(onPressed: addN2, child: const Text("N₂")),
+                  const SizedBox(width: 10),
+                  ElevatedButton(onPressed: addH2, child: const Text("H₂")),
                 ],
               ),
 
               const SizedBox(height: 10),
 
+              // =========================
+              // ⚖️ الميزان
+              // =========================
               _balance(),
+
+              const SizedBox(height: 6),
+
+              // =========================
+              // ☁️ السحاب (تحت الميزان)
+              // =========================
+              _cloud(),
 
               const SizedBox(height: 10),
             ],
@@ -156,88 +202,69 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
     );
   }
 
+  // ⚖️ ميزان مضبوط
   Widget _balance() {
     int reactants = molecules.where((m) => m.type != MoleculeType.NH3).length;
     int products = molecules.where((m) => m.type == MoleculeType.NH3).length;
 
-    double diff = (products - reactants).toDouble();
-    double angle = (diff * 0.04).clamp(-0.6, 0.6);
+    double diff = products - reactants;
+
+    double factor = (pressure * 0.25) + (heatOn ? 0.4 : 0.2);
+    double angle = (diff * factor * 0.04).clamp(-0.6, 0.6);
 
     return Column(
       children: [
-        const Text("⚖️ الميزان الكيميائي",
+
+        const Text("⚖️ الميزان",
             style: TextStyle(color: Colors.white)),
 
         const SizedBox(height: 10),
 
-        Transform.rotate(
-          angle: angle,
+        AnimatedRotation(
+          turns: angle,
+          duration: const Duration(milliseconds: 400),
           child: Container(
-            width: 220,
-            height: 6,
-            color: Colors.brown,
+            width: 240,
+            height: 8,
+            decoration: BoxDecoration(
+              color: Colors.brown,
+              borderRadius: BorderRadius.circular(4),
+            ),
           ),
         ),
 
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
 
         Text(
           diff.abs() < 2
               ? "اتزان"
               : diff > 0
-                  ? "NH₃ أثقل"
+                  ? "النواتج أثقل"
                   : "المتفاعلات أثقل",
           style: const TextStyle(color: Colors.white70),
-        ),
-
-        const SizedBox(height: 10),
-
-        LayoutBuilder(
-          builder: (context, c) {
-            double width = c.maxWidth - 40;
-
-            return Stack(
-              children: [
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20),
-                  height: 10,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [
-                        Colors.red,
-                        Colors.orange,
-                        Colors.yellow,
-                        Colors.green,
-                        Colors.blue,
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                Positioned(
-                  left: _ph(width),
-                  child: const Icon(Icons.arrow_drop_down,
-                      color: Colors.white),
-                ),
-              ],
-            );
-          },
-        ),
-
-        const SizedBox(height: 5),
-
-        const Text(
-          "0 = حمضي | 7 = متعادل | 14 = قاعدي",
-          style: TextStyle(color: Colors.white54, fontSize: 11),
         ),
       ],
     );
   }
 
-  double _ph(double width) {
-    double ph = 7 + (molecules.length / 10);
-    ph = ph.clamp(0, 14);
-    return (ph / 14) * width;
+  // ☁️ السحاب تحت الميزان
+  Widget _cloud() {
+    return SizedBox(
+      height: 30,
+      child: Opacity(
+        opacity: (pressure / 3).clamp(0.2, 0.7),
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: RadialGradient(
+              colors: [
+                Colors.white24,
+                Colors.transparent,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   String _status() {
@@ -258,97 +285,89 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
   }
 }
 
-// ==============================
+// =============================
 
 enum ReactionDirection { forward, reverse, equilibrium }
 
 enum MoleculeType { N2, H2, NH3 }
 
-class Atom {
-  Color color;
-  Atom(this.color);
-}
-
 class Molecule {
   MoleculeType type;
 
-  double x = 0;
-  double y = 0;
+  double x = Random().nextDouble() * 250;
+  double y = Random().nextDouble() * 350;
 
-  double vx = 1.5;
-  double vy = 1;
+  double t = 0;
 
-  List<Atom> atoms = [];
+  Molecule({required this.type});
 
-  Molecule({required this.type}) {
-    final r = Random();
-    x = r.nextDouble() * 200;
-    y = r.nextDouble() * 300;
-    _build();
-  }
+  void update(bool heat, double pressure, Size? box) {
+    double speed = heat ? 0.06 : 0.02;
 
-  void _build() {
-    atoms.clear();
+    t += speed;
 
-    if (type == MoleculeType.N2) {
-      atoms.add(Atom(Colors.blue));
-      atoms.add(Atom(Colors.blue));
-    }
+    x += sin(t) * (heat ? 1.2 : 0.5);
+    y += cos(t) * (heat ? 1.2 : 0.5);
 
-    if (type == MoleculeType.H2) {
-      atoms.add(Atom(Colors.grey));
-      atoms.add(Atom(Colors.grey));
-    }
-
-    if (type == MoleculeType.NH3) {
-      atoms.add(Atom(Colors.blue));
-      atoms.add(Atom(Colors.white));
-      atoms.add(Atom(Colors.white));
-      atoms.add(Atom(Colors.white));
-    }
-  }
-
-  void update(bool heat, List<Molecule> all, Size? box) {
-    double speed = heat ? 3 : 1.5;
-
-    x += vx * speed;
-    y += vy * speed;
-
+    // 🧲 منع الخروج من الشاشة
     if (box != null) {
-      // 🧲 منع الخروج من الحدود
-      if (x < 0 || x > box.width - 40) vx *= -1;
-      if (y < 0 || y > box.height - 40) vy *= -1;
-
       x = x.clamp(0, box.width - 40);
       y = y.clamp(0, box.height - 40);
     }
 
-    // ⚛️ تصادم بسيط
-    for (var other in all) {
-      if (other == this) continue;
+    _reactionChance(heat);
+  }
 
-      double dx = (x - other.x).abs();
-      double dy = (y - other.y).abs();
+  void _reactionChance(bool heat) {
+    double p = heat ? 0.02 : 0.008;
 
-      if (dx < 20 && dy < 20) {
-        _react(other);
+    if (Random().nextDouble() < p) {
+      if (type == MoleculeType.N2 || type == MoleculeType.H2) {
+        type = MoleculeType.NH3;
+      } else {
+        type = Random().nextBool()
+            ? MoleculeType.N2
+            : MoleculeType.H2;
       }
     }
   }
 
-  void _react(Molecule other) {
-    if (type == MoleculeType.N2 && other.type == MoleculeType.H2) {
-      type = MoleculeType.NH3;
-      other.type = MoleculeType.NH3;
-      _build();
-      other._build();
+  List<Widget> buildAtoms() {
+    switch (type) {
+      case MoleculeType.N2:
+        return [_atom(Colors.blue), _atom(Colors.blue)];
+      case MoleculeType.H2:
+        return [_atom(Colors.grey), _atom(Colors.grey)];
+      case MoleculeType.NH3:
+        return [
+          _atom(Colors.blue),
+          _atom(Colors.white),
+          _atom(Colors.white),
+          _atom(Colors.white),
+        ];
     }
+  }
 
-    if (type == MoleculeType.NH3 && other.type == MoleculeType.NH3) {
-      type = MoleculeType.N2;
-      other.type = MoleculeType.H2;
-      _build();
-      other._build();
+  Widget _atom(Color c) {
+    return Container(
+      margin: const EdgeInsets.all(2),
+      width: 12,
+      height: 12,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: c.withOpacity(0.85),
+      ),
+    );
+  }
+
+  String label() {
+    switch (type) {
+      case MoleculeType.N2:
+        return "N₂";
+      case MoleculeType.H2:
+        return "H₂";
+      case MoleculeType.NH3:
+        return "NH₃";
     }
   }
 }
