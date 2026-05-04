@@ -100,7 +100,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
   Reaction? currentReaction;
   String reactionStatus = "";
 
-  /// ================= REACTIONS =================
   final List<Reaction> reactions = [
     Reaction(
       inputs: [ParticleType.h2, ParticleType.cl2],
@@ -216,17 +215,20 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
     ].contains(t);
   }
 
-  /// ================= MOVE =================
+  /// ================= MOVE (FINAL FIXED CONTAINER BOUNDARY) =================
   void _move() {
+    double entryTop = 150; // فتحة الدخول
     double bottom = worldH / 2 + 160;
     double left = worldW / 2 - 110;
     double right = worldW / 2 + 110;
 
     for (var p in particles) {
+      /// electrons rotation
       for (var e in p.electrons) {
         e.angle += e.speed;
       }
 
+      /// reaction animation
       if (p.reacting) {
         p.reactionProgress += 0.08;
         p.size = 20 + sin(p.reactionProgress * pi) * 8;
@@ -246,7 +248,8 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
 
       double heatFactor = burnerOn ? 1.8 : 1.0;
 
-      if (p.position.dy < 150) {
+      /// gravity + movement
+      if (p.position.dy < entryTop) {
         p.velocity = const Offset(0, 3);
       } else {
         p.velocity = Offset(
@@ -255,25 +258,40 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
         );
       }
 
+      /// gas lift
       if (isGas(p.type)) {
-        p.velocity =
-            Offset(p.velocity.dx, p.velocity.dy - 0.15);
+        p.velocity = Offset(p.velocity.dx, p.velocity.dy - 0.15);
       }
 
       p.position += p.velocity;
 
+      /// ================= FINAL CONTAINER BOUNDARIES =================
+
+      // يمنع الخروج من الأعلى بعد الدخول
+      if (p.position.dy < 0) {
+        p.position = Offset(p.position.dx, 0);
+        p.velocity = Offset(p.velocity.dx, 1);
+      }
+
+      // يمين
+      if (p.position.dx > right - 10) {
+        p.position = Offset(right - 10, p.position.dy);
+        p.velocity = Offset(-p.velocity.dx, p.velocity.dy);
+      }
+
+      // يسار
+      if (p.position.dx < left + 10) {
+        p.position = Offset(left + 10, p.position.dy);
+        p.velocity = Offset(-p.velocity.dx, p.velocity.dy);
+      }
+
+      // أسفل (ارتداد داخلي فقط)
       if (p.position.dy > bottom - 15) {
         p.position = Offset(p.position.dx, bottom - 15);
         p.velocity = Offset(
-          (random.nextDouble() - 0.5) * 3,
+          (random.nextDouble() - 0.5) * 2,
           -random.nextDouble() * 3,
         );
-      }
-
-      if (p.position.dx < left + 10 ||
-          p.position.dx > right - 10) {
-        p.velocity =
-            Offset(-p.velocity.dx, p.velocity.dy);
       }
     }
   }
@@ -312,8 +330,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
         .where((p) => p.position.dy > 150 && !p.reacting)
         .toList();
 
-    if (available.isEmpty) return;
-
     for (int i = 0; i < available.length; i++) {
       for (int j = i + 1; j < available.length; j++) {
         final a = available[i];
@@ -322,8 +338,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
         double dist = (a.position - b.position).distance;
 
         if (dist < 28) {
-          _explode(a.position);
-
           a.reacting = true;
           b.reacting = true;
 
@@ -333,14 +347,14 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
           a.type = currentReaction!.outputs.first;
           b.type = currentReaction!.outputs.last;
 
-          reactionStatus =
-              "✔ ${currentReaction!.equation}";
+          reactionStatus = "✔ ${currentReaction!.equation}";
           return;
         }
       }
     }
   }
 
+  /// ================= EXPLOSION =================
   void _explode(Offset pos) {
     for (int i = 0; i < 5; i++) {
       particles.add(
@@ -357,6 +371,7 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
     }
   }
 
+  /// ================= COLORS =================
   Color _color(ParticleType t) {
     switch (t) {
       case ParticleType.h2:
@@ -469,16 +484,17 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
     );
   }
 
-  /// ================= LAB AREA =================
+  /// ================= LAB =================
   Widget _labArea() {
     return LayoutBuilder(
       builder: (context, c) {
         worldW = c.maxWidth;
         worldH = c.maxHeight;
 
+        double bottom = worldH / 2 + 160;
+
         return Stack(
           children: [
-            /// الوعاء
             Center(
               child: Container(
                 width: 220,
@@ -491,44 +507,7 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
               ),
             ),
 
-            /// 🔥 النار
-            if (burnerOn)
-              Positioned(
-                bottom: 0,
-                left: worldW / 2 - 40,
-                child: Container(
-                  width: 80,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.red.withOpacity(0.6),
-                        Colors.orange.withOpacity(0.4),
-                        Colors.transparent,
-                      ],
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                    ),
-                  ),
-                ),
-              ),
-
-            /// 🧂 المسحوق
-            if (selectedPowder != null)
-              Positioned(
-                bottom: 80,
-                left: worldW / 2 - 10,
-                child: Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: _color(selectedPowder!),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-
-            /// الجزيئات
+            /// particles
             ...particles.map((p) => Positioned(
                   left: p.position.dx,
                   top: p.position.dy,
@@ -541,17 +520,10 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: _color(p.type),
-                          boxShadow: [
-                            BoxShadow(
-                              color: _color(p.type)
-                                  .withOpacity(0.7),
-                              blurRadius: 12,
-                            )
-                          ],
                         ),
                       ),
 
-                      /// الإلكترونات
+                      /// electrons
                       ...p.electrons.map((e) {
                         return Transform.translate(
                           offset: Offset(
@@ -567,9 +539,9 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
                             ),
                           ),
                         );
-                      }).toList(),
+                      }),
 
-                      /// 🏷️ اسم الجزيء
+                      /// label
                       Positioned(
                         top: -20,
                         child: Container(
@@ -578,17 +550,12 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
                           decoration: BoxDecoration(
                             color: Colors.black87,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: _color(p.type)
-                                  .withOpacity(0.6),
-                            ),
                           ),
                           child: Text(
                             _name(p.type),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
-                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
@@ -597,7 +564,7 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
                   ),
                 )),
 
-            /// النص
+            /// reaction text
             Positioned(
               bottom: 60,
               left: 0,
@@ -610,7 +577,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
                     style: const TextStyle(
                       color: Colors.cyanAccent,
                       fontSize: 16,
-                      fontWeight: FontWeight.bold,
                     ),
                   ),
                   Text(
