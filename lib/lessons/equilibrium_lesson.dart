@@ -26,6 +26,7 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
   void initState() {
     super.initState();
 
+    // 🧪 إنشاء النظام
     for (int i = 0; i < 6; i++) {
       molecules.add(Molecule(type: MoleculeType.N2));
       molecules.add(Molecule(type: MoleculeType.H2));
@@ -49,12 +50,16 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
     setState(() {});
   }
 
+  // =========================
+  // ⚖️ الاتزان
+  // =========================
   void _calculateDirection() {
-    int reactants = molecules.where((m) =>
-        m.type == MoleculeType.N2 || m.type == MoleculeType.H2).length;
+    int reactants = molecules
+        .where((m) => m.type == MoleculeType.N2 || m.type == MoleculeType.H2)
+        .length;
 
-    int products = molecules.where((m) =>
-        m.type == MoleculeType.NH3).length;
+    int products =
+        molecules.where((m) => m.type == MoleculeType.NH3).length;
 
     if (reactants > products + 2) {
       direction = ReactionDirection.forward;
@@ -73,6 +78,9 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
   void increaseP() => setState(() => pressure = (pressure + 0.2).clamp(0.5, 3));
   void decreaseP() => setState(() => pressure = (pressure - 0.2).clamp(0.5, 3));
 
+  // =========================
+  // UI
+  // =========================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -98,9 +106,7 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
 
               const SizedBox(height: 10),
 
-              // =========================
               // 🧪 المفاعل
-              // =========================
               Expanded(
                 flex: 4,
                 child: Container(
@@ -132,6 +138,8 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
                 ),
               ),
 
+              const SizedBox(height: 5),
+
               Text(
                 _status(),
                 style: const TextStyle(color: Colors.white70),
@@ -139,9 +147,7 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
 
               const SizedBox(height: 10),
 
-              // =========================
               // 🎛️ التحكم
-              // =========================
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -182,16 +188,12 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
 
               const SizedBox(height: 10),
 
-              // =========================
               // ⚖️ الميزان
-              // =========================
               _balance(),
 
               const SizedBox(height: 6),
 
-              // =========================
-              // ☁️ السحاب (تحت الميزان)
-              // =========================
+              // ☁️ السحاب
               _cloud(),
 
               const SizedBox(height: 10),
@@ -202,12 +204,18 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
     );
   }
 
-  // ⚖️ ميزان مضبوط
+  // =========================
+  // ⚖️ الميزان (مصَحح بالكامل)
+  // =========================
   Widget _balance() {
-    int reactants = molecules.where((m) => m.type != MoleculeType.NH3).length;
-    int products = molecules.where((m) => m.type == MoleculeType.NH3).length;
+    int reactants =
+        molecules.where((m) => m.type != MoleculeType.NH3).length;
 
-    double diff = products - reactants;
+    int products =
+        molecules.where((m) => m.type == MoleculeType.NH3).length;
+
+    // ✅ FIX: int → double
+    double diff = (products - reactants).toDouble();
 
     double factor = (pressure * 0.25) + (heatOn ? 0.4 : 0.2);
     double angle = (diff * factor * 0.04).clamp(-0.6, 0.6);
@@ -215,8 +223,10 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
     return Column(
       children: [
 
-        const Text("⚖️ الميزان",
-            style: TextStyle(color: Colors.white)),
+        const Text(
+          "⚖️ الميزان الكيميائي",
+          style: TextStyle(color: Colors.white),
+        ),
 
         const SizedBox(height: 10),
 
@@ -285,7 +295,7 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
   }
 }
 
-// =============================
+// =========================
 
 enum ReactionDirection { forward, reverse, equilibrium }
 
@@ -294,8 +304,8 @@ enum MoleculeType { N2, H2, NH3 }
 class Molecule {
   MoleculeType type;
 
-  double x = Random().nextDouble() * 250;
-  double y = Random().nextDouble() * 350;
+  double x = Random().nextDouble() * 300;
+  double y = Random().nextDouble() * 400;
 
   double t = 0;
 
@@ -309,7 +319,7 @@ class Molecule {
     x += sin(t) * (heat ? 1.2 : 0.5);
     y += cos(t) * (heat ? 1.2 : 0.5);
 
-    // 🧲 منع الخروج من الشاشة
+    // منع الخروج من الوعاء
     if (box != null) {
       x = x.clamp(0, box.width - 40);
       y = y.clamp(0, box.height - 40);
