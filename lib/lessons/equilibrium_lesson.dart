@@ -1,14 +1,14 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 
-class EquilibriumScreen extends StatefulWidget {
-  const EquilibriumScreen({super.key});
+class EquilibriumLesson extends StatefulWidget {
+  const EquilibriumLesson({super.key});
 
   @override
-  State<EquilibriumScreen> createState() => _EquilibriumScreenState();
+  State<EquilibriumLesson> createState() => _EquilibriumLessonState();
 }
 
-class _EquilibriumScreenState extends State<EquilibriumScreen>
+class _EquilibriumLessonState extends State<EquilibriumLesson>
     with SingleTickerProviderStateMixin {
 
   late AnimationController controller;
@@ -28,6 +28,7 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
   void initState() {
     super.initState();
 
+    // 🧪 تهيئة النظام
     for (int i = 0; i < 6; i++) {
       molecules.add(Molecule(type: MoleculeType.N2, side: Side.left));
       molecules.add(Molecule(type: MoleculeType.H2, side: Side.left));
@@ -36,7 +37,9 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
     controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 16),
-    )..addListener(_tick)..repeat();
+    )
+      ..addListener(_tick)
+      ..repeat();
   }
 
   void _tick() {
@@ -49,17 +52,24 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
     setState(() {});
   }
 
+  // =========================
+  // ⚖️ الاتزان الحقيقي
+  // =========================
   void _calculateDirection() {
-    int reactants = molecules.where((m) =>
-        m.type == MoleculeType.N2 || m.type == MoleculeType.H2).length;
+    int reactants = molecules
+        .where((m) =>
+            m.type == MoleculeType.N2 || m.type == MoleculeType.H2)
+        .length;
 
     int products =
         molecules.where((m) => m.type == MoleculeType.NH3).length;
 
-    if (reactants > products + 2) {
-      direction = ReactionDirection.forward;
-    } else if (products > reactants + 2) {
+    double diff = (products - reactants).toDouble();
+
+    if (diff > 2) {
       direction = ReactionDirection.reverse;
+    } else if (diff < -2) {
+      direction = ReactionDirection.forward;
     } else {
       direction = ReactionDirection.equilibrium;
     }
@@ -67,9 +77,21 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
 
   void toggleHeat() => setState(() => heatOn = !heatOn);
 
-  void increaseP() => setState(() => pressure = (pressure + 0.2).clamp(0.5, 3));
-  void decreaseP() => setState(() => pressure = (pressure - 0.2).clamp(0.5, 3));
+  void increaseP() =>
+      setState(() => pressure = (pressure + 0.2).clamp(0.5, 3));
 
+  void decreaseP() =>
+      setState(() => pressure = (pressure - 0.2).clamp(0.5, 3));
+
+  void addN2() =>
+      setState(() => molecules.add(Molecule(type: MoleculeType.N2, side: Side.left)));
+
+  void addH2() =>
+      setState(() => molecules.add(Molecule(type: MoleculeType.H2, side: Side.left)));
+
+  // =========================
+  // UI
+  // =========================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -84,8 +106,8 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _tabButton("المفاعل", 0),
-              _tabButton("التحليل", 1),
+              _tab("المفاعل", 0),
+              _tab("التحليل", 1),
             ],
           ),
 
@@ -100,7 +122,7 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
   }
 
   // =========================
-  // 🟢 TAB 1: المفاعل
+  // 🟢 TAB 1: المفاعل (محسن)
   // =========================
   Widget _reactorTab() {
     return LayoutBuilder(
@@ -120,9 +142,16 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
               return Positioned(
                 left: m.x,
                 top: m.y,
-                child: Row(
+                child: Column(
                   children: [
                     Row(children: m.buildAtoms()),
+                    Text(
+                      m.label(),
+                      style: const TextStyle(
+                        color: Colors.white38,
+                        fontSize: 10,
+                      ),
+                    )
                   ],
                 ),
               );
@@ -134,7 +163,7 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
   }
 
   // =========================
-  // 🔵 TAB 2: التحليل
+  // 🔵 TAB 2: التحليل (محسن)
   // =========================
   Widget _analysisTab() {
     int reactants =
@@ -143,7 +172,11 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
     int products =
         molecules.where((m) => m.type == MoleculeType.NH3).length;
 
-    double balance = products - reactants;
+    double diff = (products - reactants).toDouble();
+
+    double balanceAngle =
+        (diff * (pressure * 0.2) * (heatOn ? 0.6 : 0.3))
+            .clamp(-0.6, 0.6);
 
     return Column(
       children: [
@@ -152,12 +185,15 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
 
         // ⚖️ الميزان
         AnimatedRotation(
-          turns: (balance * 0.03).clamp(-0.5, 0.5),
+          turns: balanceAngle,
           duration: const Duration(milliseconds: 300),
           child: Container(
             width: 240,
             height: 8,
-            color: Colors.brown,
+            decoration: BoxDecoration(
+              color: Colors.brown,
+              borderRadius: BorderRadius.circular(4),
+            ),
           ),
         ),
 
@@ -175,9 +211,9 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
 
         const SizedBox(height: 10),
 
-        // ☁️ السحاب
+        // ☁️ السحاب (تأثير بصري للضغط)
         Opacity(
-          opacity: (pressure / 3).clamp(0.2, 0.7),
+          opacity: (pressure / 3).clamp(0.2, 0.8),
           child: Container(
             height: 40,
             decoration: const BoxDecoration(
@@ -190,10 +226,10 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
 
         const SizedBox(height: 10),
 
-        // 🧪 كروت الذرات فوق الميزان
+        // 🧪 كروت الجزيئات
         Wrap(
           spacing: 8,
-          children: molecules.take(6).map((m) {
+          children: molecules.take(8).map((m) {
             return Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
@@ -207,11 +243,43 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
             );
           }).toList(),
         ),
+
+        const SizedBox(height: 10),
+
+        // ⚙️ التحكم
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+
+            IconButton(
+              icon: Icon(
+                Icons.local_fire_department,
+                color: heatOn ? Colors.orange : Colors.grey,
+              ),
+              onPressed: toggleHeat,
+            ),
+
+            IconButton(
+              icon: const Icon(Icons.remove, color: Colors.white),
+              onPressed: decreaseP,
+            ),
+
+            Text(
+              "P:${pressure.toStringAsFixed(1)}",
+              style: const TextStyle(color: Colors.white),
+            ),
+
+            IconButton(
+              icon: const Icon(Icons.add, color: Colors.white),
+              onPressed: increaseP,
+            ),
+          ],
+        ),
       ],
     );
   }
 
-  Widget _tabButton(String title, int index) {
+  Widget _tab(String title, int index) {
     return TextButton(
       onPressed: () => setState(() => tab = index),
       child: Text(
@@ -231,6 +299,8 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
 }
 
 // =========================
+// enums
+// =========================
 
 enum ReactionDirection { forward, reverse, equilibrium }
 
@@ -238,11 +308,15 @@ enum MoleculeType { N2, H2, NH3 }
 
 enum Side { left, right }
 
+// =========================
+// Molecule Engine (محسن)
+# =========================
+
 class Molecule {
   MoleculeType type;
   Side side;
 
-  double x = Random().nextDouble() * 100;
+  double x = Random().nextDouble() * 200;
   double y = Random().nextDouble() * 300;
 
   double t = 0;
@@ -254,11 +328,11 @@ class Molecule {
 
     double speed = heat ? 0.08 : 0.04;
 
-    // 🟢 TAB1: اتجاه الحركة
+    // 🟢 حركة اتجاهية حقيقية
     if (direction == ReactionDirection.forward) {
-      x += speed * 10; // left → right
+      x += speed * 10;
     } else if (direction == ReactionDirection.reverse) {
-      x -= speed * 10; // right → left
+      x -= speed * 10;
     }
 
     t += speed;
@@ -269,10 +343,10 @@ class Molecule {
       y = y.clamp(0, box.height - 30);
     }
 
-    _reactionChance(heat);
+    _reaction(heat);
   }
 
-  void _reactionChance(bool heat) {
+  void _reaction(bool heat) {
     double p = heat ? 0.02 : 0.008;
 
     if (Random().nextDouble() < p) {
