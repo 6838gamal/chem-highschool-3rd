@@ -19,11 +19,12 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
 
   ReactionDirection direction = ReactionDirection.equilibrium;
 
+  Size? boxSize;
+
   @override
   void initState() {
     super.initState();
 
-    // 🧪 إنشاء النظام الجزيئي
     for (int i = 0; i < 6; i++) {
       molecules.add(Molecule(type: MoleculeType.N2));
       molecules.add(Molecule(type: MoleculeType.H2));
@@ -41,15 +42,12 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
     _calculateDirection();
 
     for (var m in molecules) {
-      m.update(heatOn, molecules);
+      m.update(heatOn, molecules, boxSize);
     }
 
     setState(() {});
   }
 
-  // ==============================
-  // ⚖️ الاتزان الحقيقي
-  // ==============================
   void _calculateDirection() {
     int reactants = molecules
         .where((m) => m.type == MoleculeType.N2 || m.type == MoleculeType.H2)
@@ -71,54 +69,36 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
     setState(() => heatOn = !heatOn);
   }
 
-  // ==============================
-  // UI
-  // ==============================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Column(
-        children: [
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          boxSize = Size(constraints.maxWidth, constraints.maxHeight * 0.55);
 
-          const SizedBox(height: 45),
+          return Column(
+            children: [
+              const SizedBox(height: 45),
 
-          // ⚗️ المعادلة
-          const Text(
-            "N₂ + 3H₂ ⇌ 2NH₃",
-            style: TextStyle(color: Colors.white, fontSize: 22),
-          ),
-
-          const SizedBox(height: 10),
-
-          // =======================
-          // 🧪 المفاعل الجزيئي
-          // =======================
-          Expanded(
-            flex: 4,
-            child: Container(
-              margin: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.white24),
-                borderRadius: BorderRadius.circular(12),
+              const Text(
+                "N₂ + 3H₂ ⇌ 2NH₃",
+                style: TextStyle(color: Colors.white, fontSize: 22),
               ),
-              child: Stack(
-                children: molecules.map((m) {
-                  return Stack(
-                    children: [
-                      ...m.bonds.map((b) {
-                        return Positioned(
-                          left: b.x1,
-                          top: b.y1,
-                          child: Container(
-                            width: b.length,
-                            height: 2,
-                            color: Colors.white30,
-                          ),
-                        );
-                      }),
 
-                      Positioned(
+              const SizedBox(height: 10),
+
+              Expanded(
+                flex: 4,
+                child: Container(
+                  margin: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white24),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Stack(
+                    children: molecules.map((m) {
+                      return Positioned(
                         left: m.x,
                         top: m.y,
                         child: Row(
@@ -134,78 +114,59 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
                                   ))
                               .toList(),
                         ),
-                      ),
-                    ],
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 5),
-
-          // 🧠 الحالة
-          Text(
-            _status(),
-            style: const TextStyle(color: Colors.white70),
-          ),
-
-          const SizedBox(height: 10),
-
-          // 🔥 الحرارة
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: Icon(
-                  Icons.local_fire_department,
-                  color: heatOn ? Colors.orange : Colors.grey,
+                      );
+                    }).toList(),
+                  ),
                 ),
-                onPressed: toggleHeat,
               ),
+
               Text(
-                heatOn ? "Heat ON" : "Heat OFF",
-                style: const TextStyle(color: Colors.white),
+                _status(),
+                style: const TextStyle(color: Colors.white70),
               ),
+
+              const SizedBox(height: 10),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.local_fire_department,
+                      color: heatOn ? Colors.orange : Colors.grey,
+                    ),
+                    onPressed: toggleHeat,
+                  ),
+                  Text(
+                    heatOn ? "Heat ON" : "Heat OFF",
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 10),
+
+              _balance(),
+
+              const SizedBox(height: 10),
             ],
-          ),
-
-          const SizedBox(height: 10),
-
-          // =======================
-          // ⚖️ الميزان
-          // =======================
-          _balance(),
-
-          const SizedBox(height: 10),
-        ],
+          );
+        },
       ),
     );
   }
 
-  // ==============================
-  // ⚖️ الميزان العلمي الصحيح
-  // ==============================
   Widget _balance() {
-    int reactants = molecules
-        .where((m) => m.type != MoleculeType.NH3)
-        .length;
-
-    int products =
-        molecules.where((m) => m.type == MoleculeType.NH3).length;
+    int reactants = molecules.where((m) => m.type != MoleculeType.NH3).length;
+    int products = molecules.where((m) => m.type == MoleculeType.NH3).length;
 
     double diff = (products - reactants).toDouble();
-
-    double angle = diff * 0.04;
-    angle = angle.clamp(-0.6, 0.6);
+    double angle = (diff * 0.04).clamp(-0.6, 0.6);
 
     return Column(
       children: [
-
-        const Text(
-          "⚖️ الميزان الكيميائي",
-          style: TextStyle(color: Colors.white),
-        ),
+        const Text("⚖️ الميزان الكيميائي",
+            style: TextStyle(color: Colors.white)),
 
         const SizedBox(height: 10),
 
@@ -231,34 +192,36 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
 
         const SizedBox(height: 10),
 
-        // =======================
-        // ☁️ pH SCALE
-        // =======================
-        Stack(
-          children: [
+        LayoutBuilder(
+          builder: (context, c) {
+            double width = c.maxWidth - 40;
 
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              height: 10,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.red,
-                    Colors.orange,
-                    Colors.yellow,
-                    Colors.green,
-                    Colors.blue,
-                  ],
+            return Stack(
+              children: [
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  height: 10,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        Colors.red,
+                        Colors.orange,
+                        Colors.yellow,
+                        Colors.green,
+                        Colors.blue,
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-
-            Positioned(
-              left: _ph(),
-              child: const Icon(Icons.arrow_drop_down, color: Colors.white),
-            ),
-          ],
+                Positioned(
+                  left: _ph(width),
+                  child: const Icon(Icons.arrow_drop_down,
+                      color: Colors.white),
+                ),
+              ],
+            );
+          },
         ),
 
         const SizedBox(height: 5),
@@ -271,10 +234,10 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
     );
   }
 
-  double _ph() {
+  double _ph(double width) {
     double ph = 7 + (molecules.length / 10);
     ph = ph.clamp(0, 14);
-    return (ph / 14) * 260;
+    return (ph / 14) * width;
   }
 
   String _status() {
@@ -296,6 +259,7 @@ class _EquilibriumScreenState extends State<EquilibriumScreen>
 }
 
 // ==============================
+
 enum ReactionDirection { forward, reverse, equilibrium }
 
 enum MoleculeType { N2, H2, NH3 }
@@ -303,11 +267,6 @@ enum MoleculeType { N2, H2, NH3 }
 class Atom {
   Color color;
   Atom(this.color);
-}
-
-class Bond {
-  double x1, y1, length;
-  Bond(this.x1, this.y1, this.length);
 }
 
 class Molecule {
@@ -320,20 +279,16 @@ class Molecule {
   double vy = 1;
 
   List<Atom> atoms = [];
-  List<Bond> bonds = [];
 
   Molecule({required this.type}) {
     final r = Random();
-
-    x = r.nextDouble() * 100;
+    x = r.nextDouble() * 200;
     y = r.nextDouble() * 300;
-
     _build();
   }
 
   void _build() {
     atoms.clear();
-    bonds.clear();
 
     if (type == MoleculeType.N2) {
       atoms.add(Atom(Colors.blue));
@@ -353,13 +308,22 @@ class Molecule {
     }
   }
 
-  void update(bool heat, List<Molecule> all) {
+  void update(bool heat, List<Molecule> all, Size? box) {
     double speed = heat ? 3 : 1.5;
 
     x += vx * speed;
     y += vy * speed;
 
-    // تصادم بسيط
+    if (box != null) {
+      // 🧲 منع الخروج من الحدود
+      if (x < 0 || x > box.width - 40) vx *= -1;
+      if (y < 0 || y > box.height - 40) vy *= -1;
+
+      x = x.clamp(0, box.width - 40);
+      y = y.clamp(0, box.height - 40);
+    }
+
+    // ⚛️ تصادم بسيط
     for (var other in all) {
       if (other == this) continue;
 
