@@ -48,11 +48,11 @@ class Particle {
     required this.position,
     required this.velocity,
     required this.type,
+    required this.electrons,
     this.reacted = false,
     this.reacting = false,
     this.reactionProgress = 0,
     this.size = 20,
-    required this.electrons,
   });
 }
 
@@ -73,7 +73,7 @@ class Reaction {
   });
 }
 
-/// ================= MAIN SCREEN =================
+/// ================= MAIN =================
 class ChemistryLabScreen extends StatefulWidget {
   const ChemistryLabScreen({super.key});
 
@@ -100,7 +100,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
   Reaction? currentReaction;
   String reactionStatus = "";
 
-  /// ================= REACTIONS =================
   final List<Reaction> reactions = [
     Reaction(
       inputs: [ParticleType.h2, ParticleType.cl2],
@@ -145,7 +144,7 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
     _startLoop();
   }
 
-  /// ================= ELECTRONS GENERATOR =================
+  /// ================= ELECTRONS =================
   List<Electron> _generateElectrons(ParticleType type) {
     int count;
 
@@ -223,7 +222,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
     double right = worldW / 2 + 110;
 
     for (var p in particles) {
-      /// electrons motion
       for (var e in p.electrons) {
         e.angle += e.speed;
       }
@@ -363,7 +361,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
     }
   }
 
-  /// ================= EXPLOSION =================
   void _explode(Offset pos) {
     for (int i = 0; i < 5; i++) {
       particles.add(
@@ -380,7 +377,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
     }
   }
 
-  /// ================= COLORS =================
   Color _color(ParticleType t) {
     switch (t) {
       case ParticleType.h2:
@@ -392,7 +388,7 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
       case ParticleType.h2o2:
         return Colors.purpleAccent;
       case ParticleType.caco3:
-        return Colors.grey;
+        return Colors.brown;
       case ParticleType.cl2:
         return Colors.greenAccent;
       case ParticleType.co2:
@@ -407,6 +403,7 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
   String _name(ParticleType t) =>
       t.toString().split('.').last;
 
+  /// ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -421,7 +418,7 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
     );
   }
 
-  /// ================= UI =================
+  /// ================= TOP =================
   Widget _topPanel() {
     return Container(
       padding: const EdgeInsets.all(8),
@@ -433,12 +430,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
             onChanged: (v) => setState(() => burnerOn = v),
           ),
           const Text("🔥"),
-          const SizedBox(width: 10),
-          Switch(
-            value: catalystOn,
-            onChanged: (v) => setState(() => catalystOn = v),
-          ),
-          const Text("⚗️"),
           const SizedBox(width: 10),
           DropdownButton<ParticleType>(
             hint: const Text("مادة"),
@@ -455,6 +446,25 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
                       child: Text(_name(e)),
                     ))
                 .toList(),
+          ),
+          const SizedBox(width: 10),
+          DropdownButton<ParticleType?>(
+            hint: const Text("مسحوق"),
+            value: selectedPowder,
+            onChanged: (v) {
+              setState(() {
+                selectedPowder = v;
+                _detectReaction();
+              });
+            },
+            items: [
+              const DropdownMenuItem(
+                  value: null, child: Text("بدون")),
+              ...powders.map((e) => DropdownMenuItem(
+                    value: e,
+                    child: Text(_name(e)),
+                  ))
+            ],
           ),
           const SizedBox(width: 10),
           ElevatedButton(
@@ -486,6 +496,21 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
                 ),
               ),
             ),
+
+            /// 🧪 POWDER VISUAL
+            if (selectedPowder != null)
+              Positioned(
+                bottom: 80,
+                left: worldW / 2 - 10,
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: _color(selectedPowder!),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
 
             /// PARTICLES
             ...particles.map((p) => Positioned(
@@ -527,6 +552,30 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
                           ),
                         );
                       }).toList(),
+
+                      /// NAME LABEL
+                      Positioned(
+                        top: -18,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius:
+                                BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            _name(p.type),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 )),
