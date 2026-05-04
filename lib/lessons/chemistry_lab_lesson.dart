@@ -3,7 +3,6 @@ import 'dart:math';
 import 'dart:async';
 import '../constants.dart';
 
-/// ================= TYPES =================
 enum ParticleType {
   h2,
   o2,
@@ -18,7 +17,6 @@ enum ParticleType {
   h2o,
 }
 
-/// ================= PARTICLE =================
 class Particle {
   Offset position;
   Offset velocity;
@@ -38,7 +36,6 @@ class Particle {
   });
 }
 
-/// ================= REACTION =================
 class Reaction {
   final List<ParticleType> inputs;
   final List<ParticleType> outputs;
@@ -55,7 +52,6 @@ class Reaction {
   });
 }
 
-/// ================= MAIN SCREEN =================
 class ChemistryLabScreen extends StatefulWidget {
   const ChemistryLabScreen({super.key});
 
@@ -64,7 +60,6 @@ class ChemistryLabScreen extends StatefulWidget {
       _ChemistryLabScreenState();
 }
 
-/// ================= STATE =================
 class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
   final List<Particle> particles = [];
   final Random random = Random();
@@ -82,7 +77,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
   Reaction? currentReaction;
   String reactionStatus = "";
 
-  /// ================= REACTIONS =================
   final List<Reaction> reactions = [
     Reaction(
       inputs: [ParticleType.h2, ParticleType.cl2],
@@ -127,7 +121,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
     _startLoop();
   }
 
-  /// ================= LOOP =================
   void _startLoop() {
     timer = Timer.periodic(const Duration(milliseconds: 30), (_) {
       setState(() {
@@ -138,7 +131,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
     });
   }
 
-  /// ================= INJECT =================
   void _injectFromTube() {
     if (selectedMaterial == null) return;
 
@@ -170,7 +162,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
     ].contains(t);
   }
 
-  /// ================= MOVE =================
   void _move() {
     double containerBottom = worldH / 2 + 160;
     double containerLeft = worldW / 2 - 110;
@@ -203,7 +194,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
         );
       }
 
-      /// طفو الغازات
       if (isGas(p.type)) {
         p.velocity =
             Offset(p.velocity.dx, p.velocity.dy - 0.1);
@@ -211,7 +201,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
 
       p.position += p.velocity;
 
-      /// ارتداد من القاع
       if (p.position.dy > containerBottom - 15) {
         p.position =
             Offset(p.position.dx, containerBottom - 15);
@@ -222,7 +211,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
         );
       }
 
-      /// الجوانب
       if (p.position.dx < containerLeft + 10 ||
           p.position.dx > containerRight - 10) {
         p.velocity =
@@ -231,7 +219,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
     }
   }
 
-  /// ================= DETECT =================
   void _detectReaction() {
     currentReaction = null;
 
@@ -257,7 +244,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
     }
   }
 
-  /// ================= COLLISIONS =================
   void _handleCollisions() {
     if (currentReaction == null) {
       reactionStatus = "لا يوجد تفاعل";
@@ -270,15 +256,12 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
 
     if (available.isEmpty) return;
 
-    /// تفاعل مادة واحدة
     if (currentReaction!.inputs.length == 1) {
       for (var p in available) {
         if (currentReaction!.inputs.contains(p.type)) {
           _explode(p.position);
-
           p.reacting = true;
           p.reactionProgress = 0;
-
           p.type = currentReaction!.outputs.first;
 
           reactionStatus = "✔ ${currentReaction!.equation}";
@@ -287,7 +270,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
       }
     }
 
-    /// تفاعل بمادتين
     for (int i = 0; i < available.length; i++) {
       for (int j = i + 1; j < available.length; j++) {
         final a = available[i];
@@ -320,7 +302,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
     }
   }
 
-  /// ================= EXPLOSION =================
   void _explode(Offset pos) {
     for (int i = 0; i < 5; i++) {
       particles.add(
@@ -336,7 +317,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
     }
   }
 
-  /// ================= COLOR =================
   Color _color(ParticleType t) {
     switch (t) {
       case ParticleType.h2:
@@ -363,7 +343,6 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
   String _name(ParticleType t) =>
       t.toString().split('.').last;
 
-  /// ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -380,63 +359,94 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
     );
   }
 
-  /// ================= TOP PANEL =================
   Widget _topPanel() {
     return Container(
       padding: const EdgeInsets.all(8),
       color: Colors.black26,
-      child: Row(
+      child: Column(
         children: [
-          const Text('🔥'),
-          Switch(
-            value: burnerOn,
-            onChanged: (v) => setState(() => burnerOn = v),
-          ),
-          const Text('⚗️'),
-          Switch(
-            value: catalystOn,
-            onChanged: (v) =>
-                setState(() => catalystOn = v),
-          ),
-          const SizedBox(width: 10),
-          DropdownButton<ParticleType>(
-            hint: const Text("مادة"),
-            value: selectedMaterial,
-            onChanged: (v) =>
-                setState(() => selectedMaterial = v),
-            items: materials
-                .map((e) => DropdownMenuItem(
-                      value: e,
-                      child: Text(_name(e)),
-                    ))
-                .toList(),
-          ),
-          const SizedBox(width: 10),
-          DropdownButton<ParticleType?>(
-            hint: const Text("مسحوق"),
-            value: selectedPowder,
-            onChanged: (v) =>
-                setState(() => selectedPowder = v),
-            items: [
-              const DropdownMenuItem(
-                  value: null, child: Text("بدون")),
-              ...powders.map((e) => DropdownMenuItem(
-                    value: e,
-                    child: Text(_name(e)),
-                  ))
+          Row(
+            children: [
+              const Text('🔥'),
+              Switch(
+                value: burnerOn,
+                onChanged: (v) {
+                  setState(() {
+                    burnerOn = v;
+                    _detectReaction();
+                  });
+                },
+              ),
+              const Text('⚗️'),
+              Switch(
+                value: catalystOn,
+                onChanged: (v) {
+                  setState(() {
+                    catalystOn = v;
+                    _detectReaction();
+                  });
+                },
+              ),
             ],
           ),
-          const SizedBox(width: 10),
-          ElevatedButton(
-            onPressed: _injectFromTube,
-            child: const Text("إدخال"),
+          Row(
+            children: [
+              DropdownButton<ParticleType>(
+                hint: const Text("مادة"),
+                value: selectedMaterial,
+                onChanged: (v) {
+                  setState(() {
+                    selectedMaterial = v;
+                    _detectReaction();
+                  });
+                },
+                items: materials
+                    .map((e) => DropdownMenuItem(
+                          value: e,
+                          child: Text(_name(e)),
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(width: 10),
+              DropdownButton<ParticleType?>(
+                hint: const Text("مسحوق"),
+                value: selectedPowder,
+                onChanged: (v) {
+                  setState(() {
+                    selectedPowder = v;
+                    _detectReaction();
+                  });
+                },
+                items: [
+                  const DropdownMenuItem(
+                      value: null, child: Text("بدون")),
+                  ...powders.map((e) => DropdownMenuItem(
+                        value: e,
+                        child: Text(_name(e)),
+                      ))
+                ],
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton(
+                onPressed: _injectFromTube,
+                child: const Text("إدخال"),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "المادة: ${selectedMaterial != null ? _name(selectedMaterial!) : '—'}",
+            style: const TextStyle(color: Colors.white),
+          ),
+          Text(
+            "المسحوق: ${selectedPowder != null ? _name(selectedPowder!) : '—'}",
+            style: const TextStyle(color: Colors.white),
           ),
         ],
       ),
     );
   }
 
-  /// ================= LAB =================
   Widget _labArea() {
     return LayoutBuilder(
       builder: (context, c) {
@@ -445,58 +455,87 @@ class _ChemistryLabScreenState extends State<ChemistryLabScreen> {
 
         return Stack(
           children: [
-            /// الوعاء
             Center(
               child: Container(
                 width: 220,
                 height: 320,
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.cyan),
+                  color: currentReaction == null
+                      ? Colors.black38
+                      : burnerOn || catalystOn
+                          ? Colors.green.withOpacity(0.2)
+                          : Colors.orange.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: currentReaction == null
+                        ? Colors.grey
+                        : Colors.cyanAccent,
+                    width: 2,
+                  ),
                 ),
               ),
             ),
 
-            /// الجسيمات
             ...particles.map((p) => Positioned(
                   left: p.position.dx,
                   top: p.position.dy,
-                  child: Container(
-                    width: 20,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: _color(p.type),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color:
-                              _color(p.type).withOpacity(0.7),
-                          blurRadius: 10,
-                        )
-                      ],
-                    ),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              _color(p.type),
+                              Colors.black,
+                            ],
+                          ),
+                        ),
+                      ),
+                      Text(
+                        _name(p.type),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                        ),
+                      ),
+                    ],
                   ),
                 )),
 
-            /// النص
             Positioned(
-              bottom: 40,
+              bottom: 60,
               left: 0,
               right: 0,
               child: Column(
                 children: [
-                  Text(
-                    currentReaction?.equation ??
-                        "لا يوجد تفاعل",
-                    style: const TextStyle(
-                        color: Colors.white),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    color: Colors.black87,
+                    child: Text(
+                      currentReaction != null
+                          ? "🧪 ${currentReaction!.equation}"
+                          : "⚠️ لا يوجد تفاعل متاح",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: currentReaction != null
+                            ? Colors.cyanAccent
+                            : Colors.orange,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
+                  const SizedBox(height: 6),
                   Text(
                     reactionStatus,
                     style: TextStyle(
                       color: reactionStatus.startsWith("✔")
                           ? Colors.green
                           : Colors.red,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
